@@ -139,9 +139,9 @@ ui <-
         
         sliderInput(inputId = "sample_size",
                     label = "Select sample size:",
-                    min = 500,
-                    max = 5000, 
-                    value = 1000),  # slider to decide sample size
+                    min = 50,
+                    max = 500, 
+                    value = 250),  # slider to decide sample size
         
         # selectInput("sample_size", "Select Sample Size:",
         #             choices = c(500, 1000, 2500, 5000),
@@ -163,12 +163,16 @@ ui <-
       ),
       mainPanel(fluidRow(
         splitLayout(cellWidths = c("50%", "50%"),
-                    withSpinner(plotOutput("fittedLine")),
-                    withSpinner(plotOutput("origPlot"))),   # render the plots
+                    withSpinner(plotOutput("fittedLine1")),
+                    withSpinner(plotOutput("origPlot1"))),   # render the plots
         br(),
-        tableOutput("fittedEqn"))
+        splitLayout(cellWidths = c("50%", "50%"),
+                    withSpinner(plotOutput("fittedLine2")))#,
+                    # withSpinner(plotOutput("origPlot2"))),   # render the plots
+        # tableOutput("fittedEqn"))
       )
     )
+  )
   )
 
 
@@ -180,22 +184,22 @@ server <- function(input, output, session) {
   # Different data sets to play around with. Uncomment to use (remember to change choices in UI)
   
   # ENERGY DATA
-  EnergyData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/energy_data_cleaned.csv")
+  EnergyData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/energy_data_cleaned.csv")
   
   # NEWS DATA
-  NewsData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/news_data_cleaned.csv")
+  NewsData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/news_data_cleaned.csv")
   
   
   # MLB DATA
-  BaseballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/mlb_data_cleaned.csv")
+  BaseballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/mlb_data_cleaned.csv")
   
   
   # CRICKET BATTING DATA
-  CricketData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/cric_bat_data.csv")
+  CricketData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv")
   
   
   # NBA PLAYER DATA
-  BasketballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/nba_data_cleaned.csv")
+  BasketballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/nba_data_cleaned.csv")
   
   
   # CHOOSING DATASET BASED ON INPUT
@@ -228,6 +232,7 @@ server <- function(input, output, session) {
                       label = "X Variable:",
                       choices = colnames(data()))
   })
+
   
   # Define the data sample with the inputted sample size
   reg_data <- reactive({
@@ -243,23 +248,74 @@ server <- function(input, output, session) {
     lm(paste(input$y_var, "~", input$x_var), reg_data())
   })
   
-  output$fittedEqn <- renderTable({
-    mod() %>%
-      tidy() %>%
-      select(term, estimate)
+  # plotData <- reactive({
+  #   reactiveValues(regdata = reg_data(),
+  #                  lines = data.frame(a = coef(mod())[1], b = coef(mod())[2]),
+  #                  plot = ggplot(data = data.frame(x = Inf, y = Inf),
+  #                                mapping = aes(input$x_var, input$y_var)) +
+  #                    geom_point() +
+  #                    theme_bw() +
+  #                    labs(title = "History")
+  #                  )})
+  
+  lines <- reactive({data.frame(a = coef(mod())[1], b = coef(mod())[2])})
+
+  plotData <- reactive({
+    ggplot(data = data.frame(x = Inf, y = Inf),
+           mapping = aes_string(x = input$x_var, y = input$y_var)) +
+      geom_point() +
+      theme_bw() +
+      labs(title = "History")
   })
   
-  output$fittedLine <- renderPlot({
+
+  # output$fittedEqn <- renderTable({
+  #   mod() %>%
+  #     tidy() %>%
+  #     select(term, estimate)
+  # })
+  
+  output$fittedLine1 <- renderPlot({
     reg_data() %>%
       ggplot(aes_string(x = input$x_var, y = input$y_var)) +
       geom_point(shape = 1) +
-      # labs(title = "Data Fit",
-      #      x = names(mlb_x_choices[which(mlb_x_choices == input$x_var)]),
-      #      y = names(mlb_y_choices[which(mlb_y_choices == input$y_var)])) +
-      geom_smooth(method = "lm", se = FALSE, col="blue")
+      labs(title = "Data Fit") +
+      # geom_smooth(method = "lm", se = FALSE, col="blue")
+      geom_abline(intercept = lines()$a[1],
+                  slope = lines()$b[1],
+                  col = "blue", linewidth = 0.5)
+    })
+  
+  
+  # observeEvent(input$resample, {
+  #   plotData()$plot <- plotData()$plot +
+  #     geom_abline(intercept = plotData()$lines$a[1],
+  #                 slope = plotData()$lines$b[1],
+  #                 col = "grey60", linewidth = 0.75)
+  #   plotData()$regdata <- reg_data()
+  #   plotData()$lines <- rbind(coef(mod()), plotData()$lines) 
+  # })
+  
+  eventReactive(input$resample, {
+    plotData() <- plotData() +
+      geom_abline(intercept = lines()$a[1],
+                  slope = lines()$b[1],
+                  col = "grey60", linewidth = 0.75)
+    lines() <- rbind(coef(mod()), lines()) 
   })
   
-  output$origPlot <- renderPlot({
+  
+  output$fittedLine2 <- renderPlot({
+    if(input$resample >= 0){
+      plotData() +
+        geom_abline(intercept = lines()$a[1], 
+                    slope = lines()$b[1], 
+                    col = "seagreen", linewidth = 1)
+      }
+    })
+
+  
+  output$origPlot1 <- renderPlot({
     obsData <- augment(mod())
     dataPlot <- switch(
       input$plot_type,
@@ -270,7 +326,9 @@ server <- function(input, output, session) {
                               geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
                               labs(title = "Residuals vs. Fitted",
                                    x = "Fitted values",
-                                   y = "Residuals"),
+                                   y = "Residuals") +
+                              coord_cartesian(xlim = c(min(obsData$.fitted), max(obsData$.fitted)),
+                                              ylim = c(min(obsData$.resid), max(obsData$.resid))),
                             wCI = obsData %>% ggplot(aes(x = .fitted, y = .resid)) +
                               geom_hline(yintercept = 0, linetype = 2, color = "black") +
                               geom_point(shape = 1) +
@@ -313,6 +371,8 @@ server <- function(input, output, session) {
         labs(title = "Normal Q-Q Plot", x = "N(0, 1) quantiles", y = "Standardized residuals"))
     dataPlot
   })
+  
+  
 }
 
 # Run the application 
