@@ -1,0 +1,13 @@
+name: Estimating
+title: Estimating
+username:
+account: uoe-maths
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5482542
+bundleId: 5494426
+url: https://uoe-maths.shinyapps.io/Estimating/
+when: 1642792030.02629
+lastSyncTime: 1642792030.02629
+asMultiple: FALSE
+asStatic: FALSE

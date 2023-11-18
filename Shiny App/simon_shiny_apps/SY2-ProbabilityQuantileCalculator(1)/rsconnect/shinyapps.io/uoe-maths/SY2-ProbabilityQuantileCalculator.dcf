@@ -1,0 +1,13 @@
+name: SY2-ProbabilityQuantileCalculator
+title: SY2-ProbabilityQuantileCalculator
+username:
+account: uoe-maths
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5527066
+bundleId: 6801813
+url: https://uoe-maths.shinyapps.io/SY2-ProbabilityQuantileCalculator/
+when: 1675338487.27122
+lastSyncTime: 1675338487.27123
+asMultiple: FALSE
+asStatic: FALSE

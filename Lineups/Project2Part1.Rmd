@@ -1,0 +1,670 @@
+------------------------------------------------------------------------
+
+title: "Statistical Case Studies - Project 2 part 1 - Predicting house prices"
+
+author: "Georgia Ettles, Mayez Haris and Niharika Peddinenikalva"
+
+date: "\`r Sys.Date()\`"
+
+output:
+
+pdf_document: default
+
+html_document: default
+
+------------------------------------------------------------------------
+
+This project had equal contributions from all members. All three members sorted and cleaned the data together along with building and selecting the model. Mayez and Georgia refined the models to choose the most suitable one. Niharika and Georgia wrote the code for box plots and other graphs and tables in the project. All three members contributed towards writing the report. 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+set.seed("1234")
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(countrycode))
+suppressPackageStartupMessages(library(visdat))
+suppressPackageStartupMessages(library(interactions))
+suppressPackageStartupMessages(library(forestplot))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(viridis))
+suppressPackageStartupMessages(library(xtable))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(naivebayes))
+suppressPackageStartupMessages(library(scales))
+```
+
+# Load data
+```{r data-clean}
+# Loading data
+data <- read.csv("houseprices.csv")
+```
+
+
+# Logistic regression
+## Preprocessing
+```{r data-clean}
+# Compute the number of missing values
+sum(is.na(data[data < 0]))
+
+data$GarageType[which(is.na(data$GarageType) == TRUE)] <- "NA"
+
+# Computing the average SalePrice to make the SalePrice variable binary
+lr_data = na.omit(data[, !names(data) == "Id"])
+
+Average_sale_price = mean(data$SalePrice)
+
+# Excluding observations which are negligible in number for certain features
+lr_data <- lr_data[!lr_data$Heating %in% c("Floor", "OthW"), ]
+lr_data <- lr_data[!lr_data$Utilities %in% c("NoSeWa"), ]
+lr_data <- lr_data[!lr_data$Electrical %in% c("Mix"), ]
+lr_data <- lr_data[!lr_data$KitchenAbvGr %in% c("3", "0"), ]
+lr_data <- lr_data[!lr_data$Neighborhood %in% c("Blueste"), ]
+sum(lr_data[,lr_data$SalePrice == Average_sale_price]) # Mention that none of the SP = Average
+
+# Classifying the given prices as below or above average
+lr_data[, "SalePrice"] <- ifelse(lr_data[, "SalePrice"] > Average_sale_price, 1, 0)
+lr_data[, "SalePrice"] <- factor(lr_data[, "SalePrice"], levels = c(0, 1), 
+                                  labels = c("Below Average", "Above Average"))
+```
+
+
+
+```{r categorising}
+
+# List of variables that are to be categorical and ordinal
+categorical_list <- c("Street", "LotShape", "LandContour", "Utilities", "Neighborhood", 
+                     "BldgType", "HouseStyle", "RoofStyle", "Foundation", "Heating", 
+                     "CentralAir", "Electrical", "KitchenQual", "GarageType", "MoSold")
+
+ordinal_list <- c("FullBath", "HalfBath", "KitchenAbvGr", "Fireplaces")
+
+
+# Factor the categorical and ordinal variables
+for (column in categorical_list) {
+  lr_data[, column] <- factor(lr_data[, column])
+}
+
+for (column in ordinal_list) {
+  lr_data[, column] <- factor(lr_data[, column], ordered = TRUE)
+}
+
+summary(lr_data)
+```
+
+## Plots and figures
+```{r final plots-lr}
+### Neighborhood plot ###
+# Construct data containing only SalePrice, Neighborhood, and the proportion of houses in each SalePrice category
+neighborhood <- lr_data %>% group_by(Neighborhood, SalePrice) %>% summarise(n = n()) %>%
+  mutate(n=n/sum(n)) %>%
+  ungroup()
+
+# Create a stacked bar graph
+neighborhood_his <-ggplot(neighborhood, aes(x = Neighborhood, y = n, fill = SalePrice)) +
+  geom_bar(stat = 'identity') + 
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25),hjust = 1), axis.title = element_text(size = rel(1.5))) + 
+  labs(x = "Neighborhood", y="Proportion of Houses Sold", fill = "Sale Price") + 
+  coord_flip() 
+
+# Save the graph for use in report
+suppressMessages(ggsave(file="Neighborhood.pdf", width=6, height=4, dpi=300))
+
+
+### Overall Quality Plot ###
+# Construct data containing only SalePrice, OverallQual, and the propotion of houses in each SalePrice category
+Qual <- lr_data %>% 
+  group_by(OverallQual,SalePrice)  %>% 
+  summarise(n = n()) %>%
+  mutate(n=n/sum(n)) %>% 
+  ungroup()
+
+# Create a filled line graph
+qual_graph <- ggplot(Qual, aes(x = OverallQual, y = n, fill = SalePrice)) +
+  geom_bar(stat = 'identity') +
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25)), axis.title = element_text(size = rel(1.5))) + scale_x_continuous(breaks = Qual$OverallQual) +
+  labs(x = "Overall Material and Finish Quality",
+       y="Proportion of Houses Sold", fill = "Sale Price") + 
+  coord_flip() 
+
+# Save the graph for use in report
+suppressMessages(ggsave(file="OverallQual.pdf", width=6, height=4, dpi=300))
+
+### House Style Plot ###
+# Construct data containing only SalePrice, HouseStyle, and the proportion of houses in each SalePrice category
+hstyle <- lr_data %>% group_by(HouseStyle,SalePrice) %>% 
+  summarise(n = n()) %>%
+  mutate(n=n/sum(n)) %>%
+  ungroup()
+
+# Create desired bar graph
+hs_graph <- ggplot(hstyle, aes(x =HouseStyle, y = n, fill = SalePrice)) +
+  geom_bar(stat = 'identity') + 
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25),hjust = 1), axis.title = element_text(size = rel(1.5))) + 
+  labs(x = "Style of Dwelling", y="Proportion of Houses Sold", fill = "Sale Price")  + 
+  coord_flip()
+
+# Save the graph for use in report
+suppressMessages(ggsave(file="HosueStyle.pdf", width=6, height=4, dpi=300))
+
+
+### Bedroom Above Grade Plot ###
+# Construct data containing only SalePrice, BedroomAbvGr, and the number of houses in each SalePrice category
+Bed <- lr_data %>% group_by(BedroomAbvGr,SalePrice)  %>% 
+  summarise(n = n()) %>%
+  mutate(n=n/sum(n)) %>%
+  ungroup()
+
+# construct two graphs showing the different proportions within each sale price
+Bed_graph <- ggplot(Bed, aes(x = BedroomAbvGr, y = n, fill = SalePrice)) +
+  geom_bar(stat = 'identity', position = position_dodge(), show.legend = FALSE) + facet_grid(. ~SalePrice)  +
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25), hjust = 1), axis.title = element_text(size = rel(1.5))) + 
+  labs(y = "Proportion of Houses Sold", x = "No. of Bedrooms Above Basement Level", fill = "Sale Price")
+
+# Save the graph for use in report
+suppressMessages(ggsave(file="BedroomAbvGr.pdf", width=6, height=4, dpi=300))
+```
+
+
+```{r variable-plots}
+
+### Neighborhood plot:
+# Construct data containing only SalePrice, Neighborhood, and the number of houses in each SalePrice category
+neighborhood <- lr_data %>% group_by(Neighborhood, SalePrice) %>% summarise(n = n()) %>%
+  mutate(n=n/sum(n)) %>%
+  ungroup()
+
+
+# Create a stacked bar graph
+neighborhood_his <-ggplot(neighborhood, aes(x = Neighborhood, y = n, fill = SalePrice)) +
+  geom_bar(stat = 'identity') + 
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25),hjust = 1), axis.title = element_text(size = rel(1.5))) + 
+  labs(x = "Neighborhood", y="Number of Houses Sold") + 
+  coord_flip() 
+neighborhood_his
+# Save the graph for use in report
+#ggsave(file="Neighborhood.pdf", width=8, height=4, dpi=300)
+```
+
+
+
+## Plots we tested but didn't use
+```{r plots not used}
+# ### Overall Quality Plot:
+# # Construct data containing only SalePrice, OverallQual, and the number of houses in each SalePrice category
+# Qual <- lr_data %>% group_by(SalePrice, OverallQual)  %>% 
+#   summarise(n = n()) %>%
+#   mutate(n=n/sum(n)) %>%
+#   ungroup()
+# 
+# # Create a filled line graph
+# qual_graph <- ggplot(Qual, aes(x = OverallQual, y = n)) + 
+#   geom_area(aes(fill = SalePrice), alpha = 0.75, position = 'identity', lwd = 0.5, linetype = 1) +
+#   geom_line(aes(color = SalePrice), show.legend = FALSE) + 
+#   labs(y = "Number of Houses Sold", x = "Overall Material and Finish Quality", fill = "Sale Price") +
+#   theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25)), axis.title = element_text(size = rel(1.5))) 
+# 
+# 
+# qual_graph
+
+
+
+# ### Month Sold Plot:
+# # Construct data containing only SalePrice, MoSold, and the number of houses in each SalePrice category
+# month <- lr_data %>%
+#   group_by(MoSold, SalePrice) %>%
+#   summarise(n = n()) %>%
+#   mutate(n=n/sum(n)) %>%
+#   ungroup()
+#
+# # Create a side-by-side comparison bar graph
+# month_his <-ggplot(month, aes(x = MoSold, y = n, fill = SalePrice)) +
+#   geom_bar(stat = 'identity') +
+#   theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25)), axis.title = element_text(size = rel(1.5))) +
+#   scale_x_discrete(label = month.abb) +
+#   labs(x = "Month Sold", y="Proportion of Houses Sold")
+# month_his
+# # Save the graph for use in report
+# #ggsave(file="MoSold.pdf", width=8, height=4, dpi=300)
+```
+
+
+```{r}
+# Save the graph for use in report
+#ggsave(file="OverallQual.pdf", width=8, height=4, dpi=300)
+
+
+### House Style Plot:
+# Construct data containing only SalePrice, HouseStyle, and the number of houses in each SalePrice category
+hstyle <- lr_data %>% group_by(SalePrice, HouseStyle) %>% 
+  summarise(n = n()) %>%
+  mutate(prop=n/sum(n)) %>%
+  ungroup()
+
+# Create a side-by-side bar graph
+hs_graph <- ggplot(hstyle, aes(x =reorder(HouseStyle,n), y = prop, fill = SalePrice)) +
+  geom_bar(stat = 'identity', position = position_dodge(), show.legend = FALSE) + 
+  facet_grid(. ~SalePrice)  +
+  geom_text(aes(label = n), fontface = "bold",  vjust = -0.2,  size = 4) + ylim(0,0.6) +
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25), hjust = 1, angle = 45), axis.title = element_text(size = rel(1.5))) + 
+  labs(x = "Style of Dwelling", y = "Number of Houses Sold")
+hs_graph
+# Save the graph for use in report
+#ggsave(file="HosueStyle.pdf", width=8, height=4, dpi=300)
+```
+
+
+
+```{r}
+# original formula before model selection
+# formula <- SalePrice ~ LotArea + Street + LotShape  + LandContour + Neighborhood + 
+#   BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + RoofStyle + 
+#   Foundation + TotalBsmtSF + Heating + CentralAir + Electrical + GrLivArea + 
+#   FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+#   Fireplaces + GarageType + GarageArea + MoSold + YrSold + YearBuilt:OverallCond + 
+#   TotRmsAbvGrd:LotArea + HouseStyle:TotRmsAbvGrd + Neighborhood:LotArea +
+#   LotArea:BedroomAbvGr
+
+
+# formula for logistic regression after model selection
+formula2 <- SalePrice ~ LotArea + Neighborhood + BldgType + OverallQual + OverallCond + 
+  YearBuilt + TotalBsmtSF + CentralAir + GrLivArea + FullBath + BedroomAbvGr + 
+  KitchenQual + TotRmsAbvGrd + GarageType + LotArea:BedroomAbvGr + TotRmsAbvGrd:LotArea
+
+```
+
+## Fitting the model and cross validation
+```{r}
+
+# Setting up folds for 10-fold cross validation
+set.seed(10)
+num_folds <- 10 # number of folds
+
+shuffled_data <- lr_data[sample(nrow(lr_data)), ] # shuffle observations
+
+folds <- cut(seq(1, nrow(shuffled_data)), breaks = num_folds, label = FALSE) # create folds
+
+# To store the error rates and brier scores from each fold of cv
+error_rates <- numeric(num_folds) 
+brier_scores <- numeric(num_folds)
+```
+
+
+```{r}
+
+for (i in 1:num_folds) { # for each fold
+  testInd <- which(folds == i, arr.ind = TRUE) # indices of test data
+  
+  # set test data, training data
+  test_data <- shuffled_data[testInd,]
+  training_data <- shuffled_data[-testInd,]
+  
+  # Fit the model using training data and predict using model on test data
+  fit <- glm(formula2, data = training_data, family = "binomial")
+  predicted <- predict.glm(fit, newdata = test_data, type = "response")
+  
+  # Compute the Brier scores and error rates
+  predicted_brier <- predicted
+  predicted <- ifelse(predicted < 0.5, "Below Average", "Above Average")
+  predicted <- factor(predicted) 
+  true_vals <- test_data$SalePrice
+  error_rates[i] <- mean(true_vals != predicted)
+  true_vals_brier <- ifelse(true_vals == "Below Average", 0, 1)
+  brier_scores[i] <- mean((true_vals_brier - predicted_brier)^2)
+}
+
+# compute the average error rates and brier scores from all folds
+mean(error_rates)
+mean(brier_scores)
+```
+
+
+```{r}
+# see model results
+summary(fit)
+#xtable(summary(fit))
+
+```
+
+## Comparing our model with a model that uses all features
+```{r }
+
+# Compare our model with a model using all features except utility
+full_formula <- SalePrice ~ LotArea + Street + LotShape + LandContour + Neighborhood + 
+  BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + RoofStyle + 
+  Foundation + TotalBsmtSF + Heating + CentralAir + Electrical + GrLivArea + 
+  FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+  Fireplaces + GarageType + GarageArea + MoSold + YrSold
+full_error_rates <- numeric(num_folds)
+full_brier_scores <- numeric(num_folds)
+
+for (i in 1:num_folds) {
+  # identify test indices and perform a train-test split
+  testInd <- which(folds == i, arr.ind = TRUE)
+  test_data <- shuffled_data[testInd,]
+  training_data <- shuffled_data[-testInd,]
+  
+  # Fit the model using the training data
+  full_fit <- glm(full_formula, data = training_data, family = binomial(link='logit'))
+  
+  # Predict the Sale price probability of being above average on the test set
+  predicted <- predict.glm(full_fit, newdata = test_data, type = "response")
+  
+  # compute the brier scores and error rates
+  true_vals <- test_data$SalePrice # for comparing with predicted values
+  predicted_brier <- predicted # to compute the brier scores
+  predicted <- ifelse(predicted < 0.5, "Below Average", "Above Average")
+  predicted <- factor(predicted)  # to compute the error rates
+  
+  full_error_rates[i] <- mean(true_vals != predicted)
+  true_vals_brier <- ifelse(true_vals == "Below Average", 0, 1) 
+  full_brier_scores[i] <- mean((true_vals_brier - predicted_brier)^2)
+}
+
+mean(full_error_rates)
+mean(full_brier_scores)
+
+summary(full_fit) # see full model results
+```
+
+
+
+# Naive Bayes
+```{r}
+# create NB data containing SalePrice and 5 chosen features
+nb_data <- data[, c("Neighborhood", "HouseStyle", "OverallQual", "BedroomAbvGr", 
+                    "MoSold", "SalePrice")]
+
+
+# convert SalePrice to binary variable in nb_data
+Average_sale_price = mean(nb_data$SalePrice)
+nb_data[, "SalePrice"] <- ifelse(nb_data[, "SalePrice"] > Average_sale_price, 1, 0)
+nb_data[, "SalePrice"] <- factor(nb_data[, "SalePrice"], levels = c(0, 1), 
+                                  labels = c("Below Average", "Above Average"))
+
+
+
+# factor the qualitative categorical variables
+for (column in c("Neighborhood", "HouseStyle", "MoSold")) {nb_data[, column] <- factor(nb_data[, column])}
+
+
+# defining NB proportions for Neighborhood (multinomial)
+counts_neigh <- nb_data %>% group_by(SalePrice) %>% count(Neighborhood)
+
+# add 1 to each count to account for the missing values
+counts_neigh$n <- counts_neigh$n + 1
+
+
+# add new rows that don't exist to account for non-existent data. assign the new counts as 1
+new_row1 <- list(SalePrice = 'Above Average', Neighborhood = 'Blueste', n = 1)
+new_row2 <- list(SalePrice = 'Above Average', Neighborhood = 'BrDale', n = 1)
+new_row3 <- list(SalePrice = 'Above Average', Neighborhood = 'IDOTRR', n = 1)
+new_row4 <- list(SalePrice = 'Above Average', Neighborhood = 'MeadowV', n = 1)
+new_row5 <- list(SalePrice = 'Below Average', Neighborhood = 'NoRidge', n = 1)
+new_row6 <- list(SalePrice = 'Above Average', Neighborhood = 'NPkVill', n = 1)
+
+
+# add the rows defined above to the dataframe containing counts
+counts_neigh <- rbind(counts_neigh, new_row1, new_row2, new_row3, new_row4, new_row5, new_row6)
+
+# add column showing proportions of each category 
+probs_df_neigh <- counts_neigh %>% 
+  group_by(SalePrice) %>% mutate(prop_neigh = n/sum(n))
+
+
+
+# defining NB proportions for HouseStyle (multinomial)
+# same process as above
+counts_house <- nb_data %>% group_by(SalePrice) %>% count(HouseStyle)
+
+counts_house$n <- counts_house$n + 1
+
+new_row <- list(SalePrice = 'Above Average', HouseStyle = '1.5Unf', n = 1)
+
+counts_house <- rbind(counts_house, new_row)
+
+probs_df_house <- counts_house %>% 
+  group_by(SalePrice) %>% mutate(prop_house = n/sum(n))
+
+
+
+# defining NB proportions for MoSold (multinomial), same as above
+counts_months <- nb_data %>% group_by(SalePrice) %>% count(MoSold)
+
+probs_df_months <- counts_months %>% group_by(SalePrice) %>% mutate(prop_month = n/sum(n))
+
+
+# defining NB proportions for BedroomAbvGr (multinomial)
+counts_bed <- nb_data %>% group_by(SalePrice) %>% count(BedroomAbvGr)
+
+counts_bed$n <- counts_bed$n + 1
+
+bed_row1 <- list(SalePrice = 'Above Average', BedroomAbvGr = 7, n = 1)
+bed_row2 <- list(SalePrice = 'Below Average', BedroomAbvGr = 7, n = 1)
+bed_row3 <- list(SalePrice = 'Below Average', BedroomAbvGr = 8, n = 1)
+
+counts_bed <- rbind(counts_bed, bed_row1, bed_row2, bed_row3)
+
+probs_df_bed <- counts_bed %>% group_by(SalePrice) %>% mutate(prop_bed = n/sum(n))
+
+
+# defining proportions for OverallQual (multinomial)
+
+counts_qual <- nb_data %>% group_by(SalePrice) %>% count(OverallQual)
+
+counts_qual$n <- counts_qual$n +1
+
+qual_row1 <- list(SalePrice = 'Above Average', OverallQual = 1, n = 1)
+qual_row2 <- list(SalePrice = 'Above Average', OverallQual = 2, n = 1)
+qual_row3 <- list(SalePrice = 'Above Average', OverallQual = 3, n = 1)
+qual_row4 <- list(SalePrice = 'Below Average', OverallQual = 9, n = 1)
+
+counts_qual <- rbind(counts_qual, qual_row1, qual_row2, qual_row3, qual_row4)
+
+probs_df_qual <- counts_qual %>% group_by(SalePrice) %>% mutate(prop_qual = n/sum(n))
+
+```
+
+
+```{r badness of poisson for quality and bedrooms}
+
+# this code is used to show that although Poisson seems like a reasonable assumption, it is not actually correct for the provided data
+
+
+# define the counts dataframe without artifical values
+counts_qual2 <- nb_data %>% group_by(SalePrice) %>% count(OverallQual)
+
+# find proportions for each class and category as with the previous dataframes
+probs_df_qual2 <- counts_qual2 %>% 
+  group_by(SalePrice) %>% mutate(prop_qual = n/sum(n))
+
+
+# finding means (lambda) for each class for poisson variables to then plot pdf with later on
+nb_qual_means <- counts_qual2 %>% group_by(SalePrice) %>% summarise(quality_lamba = mean(OverallQual))
+
+# merge the lambdas with the count and proportion df
+qual_df <- merge(probs_df_qual2, nb_qual_means, by='SalePrice')
+
+# calculate value from poisson pdf for each count
+qual_df <- qual_df %>% group_by(SalePrice) %>% mutate(poiss = dpois(OverallQual, lambda = quality_lamba))
+
+
+# plot the poisson pdf on top of original data to verify the distribution
+qual_graph_pois <- ggplot(qual_df, aes(x = OverallQual, y = prop_qual, fill = SalePrice)) + facet_grid(. ~SalePrice) + geom_bar(stat = 'identity', show.legend = FALSE) + geom_line(aes(y=poiss)) +
+  geom_text(aes(label = n), vjust = -0.23,  size = 3.2) +
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25)), axis.title = element_text(size = rel(1.5))) +
+  labs(x = "Overall Material and Finish Quality", y="Proportion of Houses Sold")
+qual_graph_pois
+
+
+
+# same process as above, but for no. of bedrooms
+counts_bed2 <- nb_data %>% group_by(SalePrice) %>% count(BedroomAbvGr)
+
+probs_df_bed2 <- counts_bed2 %>% group_by(SalePrice) %>% mutate(prop_bed = n/sum(n))
+
+nb_bed_means <- counts_bed2 %>% group_by(SalePrice) %>% summarise(bed_lamba = mean(BedroomAbvGr))
+
+bed_df <- merge(probs_df_bed2, nb_bed_means, by='SalePrice')
+
+bed_df <- bed_df %>% group_by(SalePrice) %>% mutate(poiss = dpois(BedroomAbvGr, lambda = bed_lamba))
+
+bed_graph_pois <- ggplot(bed_df, aes(x = BedroomAbvGr, y = prop_bed, fill = SalePrice)) +
+  geom_bar(stat = 'identity', position = position_dodge(), show.legend = FALSE) + 
+  geom_line(aes(y=poiss), stat = 'identity') +
+  facet_grid(. ~SalePrice)  +
+  geom_text(aes(label = n),  vjust = -0.2,  size = 4) + 
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25), hjust = 1), axis.title = element_text(size = rel(1.5))) + labs(y = "Proportion of Houses Sold", x = "Number of Bedrooms Above Basement Level")
+
+
+# save plots
+bed_graph_pois
+suppressMessages(ggsave(file="bed_graph_pois.pdf", width=9, height=6, dpi=300))
+
+qual_graph_pois
+suppressMessages(ggsave(file="qual_graph_pois.pdf", width=9, height=6, dpi=300))
+
+```
+
+
+```{r NB proportion plots}
+# # proportion plot for Neighborhood with counts
+# neigh_plot_nb <- ggplot(probs_df_neigh, aes(x = Neighborhood, y = prop_neigh, fill = SalePrice)) +
+#   geom_bar(stat = 'identity') + facet_grid(. ~SalePrice) + ylim(0,0.26) +
+#   geom_text(aes(label = n), hjust = -0.2,  size = 3.2) +
+#   theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25),hjust = 1), axis.title = element_text(size = rel(1.5))) + 
+#   labs(x = "Neighborhood", y="% of Houses Sold") + 
+#   coord_flip() 
+
+
+
+# proportion plot for HouseStyle
+house_plot_nb <- ggplot(probs_df_house, aes(x =reorder(HouseStyle,n), y = prop_house, fill = SalePrice)) +
+  geom_bar(stat = 'identity', position = position_dodge(), show.legend = FALSE) + 
+  facet_grid(. ~SalePrice)  +
+  geom_text(aes(label = n),  vjust = -0.2,  size = 4) + ylim(0,0.6) +
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25), hjust = 1, angle = 45), axis.title = element_text(size = rel(1.5))) + 
+  labs(x = "Style of Dwelling", y = "Proportion of Houses Sold")
+
+
+# # proportion plot for MoSold
+# month_plot_nb <- ggplot(probs_df_months, aes(x = MoSold, y = prop_month, fill = SalePrice)) + facet_grid(. ~SalePrice) +
+#   geom_bar(stat = 'identity') +
+#   geom_text(aes(label = n), hjust = -0.2,  size = 3.2)  + ylim(0, 0.205) +
+#   theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25)), axis.title = element_text(size = rel(1.5))) +
+#   scale_x_discrete(labels=month.abb) +
+#   labs(x = "Month Sold", y="Proportion of Houses Sold") + coord_flip()
+
+
+# proportion plot for OverallQual
+
+qual_plot_nb <- ggplot(probs_df_qual, aes(x = OverallQual, y = prop_qual, fill = SalePrice)) + facet_grid(. ~SalePrice) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label = n), vjust = -0.23,  size = 3.2) +
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25)), axis.title = element_text(size = rel(1.5))) +
+  labs(x = "Overall Material and Finish Quality", y="Proportion of Houses Sold")
+
+
+# proportion plot for BedroomAbvGr
+bed_plot_nb <- ggplot(probs_df_bed, aes(x = BedroomAbvGr, y = prop_bed, fill = SalePrice)) + facet_grid(. ~SalePrice) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label = n), vjust = -0.23,  size = 3.2) +
+  theme(axis.text.y = element_text(size = rel(1.3), hjust = 1), axis.text.x = element_text(size = rel(1.25)), axis.title = element_text(size = rel(1.5))) +
+  labs(x = "No. of Bedrooms Above Basement Level", y="Proportion of Houses Sold")
+
+
+
+# save all plots
+# neigh_plot_nb
+# suppressMessages(ggsave(file="neigh_plot_nb.pdf", width=9, height=6, dpi=500))
+
+house_plot_nb
+suppressMessages(ggsave(file="house_plot_nb.pdf", width=6, height=4, dpi=300))
+
+
+# month_plot_nb
+# suppressMessages(ggsave(file="month_plot_nb.pdf", width=6, height=4, dpi=300))
+
+
+qual_plot_nb
+suppressMessages(ggsave(file="qual_plot_nb.pdf", width=6, height=4, dpi=300))
+
+
+bed_plot_nb
+suppressMessages(ggsave(file="bed_plot_nb.pdf", width=6, height=4, dpi=300))
+
+
+house_plot_nb
+qual_plot_nb
+bed_plot_nb
+```
+
+
+```{r NB model assessment}
+# Cross Validation and fitting the model
+set.seed(10)
+num_folds <- 10 # number of folds for cv
+
+shuffled_data <- nb_data[sample(nrow(nb_data)), ] # shuffle data
+
+folds <- cut(seq(1, nrow(shuffled_data)), 
+             breaks = num_folds, label = FALSE) # create folds
+
+# vectors to store error rates, brier scores and log scores
+error_rates_nb <- numeric(num_folds) 
+brier_scores_nb <- numeric(num_folds)
+log_scores_nb <- numeric(num_folds)
+
+
+# Perform 10-fold cross validation
+for (i in 1:num_folds) { # for each fold
+  testInd <- which(folds == i, arr.ind = TRUE) # test indices for fold i
+  
+  # assign test data, training data with features and response separately
+  test_data <- data.matrix(shuffled_data[testInd, -6]) 
+  training_data <- data.matrix(shuffled_data[-testInd, -6])
+  training_response <- shuffled_data$SalePrice[-testInd]
+  test_labels <- shuffled_data$SalePrice[testInd] # store test labels
+  true_vals <- ifelse(test_labels == "Below Average", 0, 1) # test responses as numeric
+  
+  # fit the naive bayes model which uses 5 multinomial features from the training data
+  nb_fit <- multinomial_naive_bayes(x = training_data, y=training_response)
+  # use model to predict on test data
+  predicted <- predict(nb_fit, newdata = test_data, type = "prob") 
+  
+  
+  # compute error rates
+  predicted_labels <- ifelse(predicted[,1] > 0.5, "Below Average", "Above Average")
+  error_rates_nb[i] <- mean(test_labels != predicted_labels)
+  
+  # compute brier scores
+  predicted_brier <- predicted[, 2]
+  brier_scores_nb[i] <- mean((true_vals - predicted_brier)^2)
+  
+  # compute log scores
+  predicted_logscore <- ifelse(true_vals == 0, predicted[,1], predicted[,2])
+  log_scores_nb[i] <- mean((true_vals - predicted_logscore)^2)
+  
+}
+
+# compute all three mean average scores
+mean(error_rates_nb)
+mean(brier_scores_nb)
+mean(log_scores_nb)
+
+# # Check the probability coefficients for the features
+# xtable(nb_fit$params)
+
+# Present all the cross validation scores in a table for the report
+error_rates_all <- c(mean(error_rates), mean(full_error_rates), mean(error_rates_nb))
+brier_scores_all <- c(mean(brier_scores), mean(full_brier_scores), mean(brier_scores_nb))
+log_scores_all <- c(NA, NA, mean(log_scores_nb))
+scores_df <- data.frame("Error Rates" = error_rates_all, "Brier scores" = brier_scores_all,
+           row.names = c("Logistic regression model (Final)", 
+                         "Logistic regression model (Full)", "Naive Bayes model"))
+
+
+nb_fit # see model results
+
+```

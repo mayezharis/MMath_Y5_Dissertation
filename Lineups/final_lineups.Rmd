@@ -1,0 +1,255 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(countrycode))
+suppressPackageStartupMessages(library(visdat))
+suppressPackageStartupMessages(library(interactions))
+suppressPackageStartupMessages(library(forestplot))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(viridis))
+suppressPackageStartupMessages(library(xtable))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(naivebayes))
+suppressPackageStartupMessages(library(scales))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(broom))
+suppressPackageStartupMessages(library(ggthemes))
+suppressPackageStartupMessages(library(latex2exp))
+suppressPackageStartupMessages(library(nullabor))
+```
+
+```{r loading different data}
+# SHARE data
+load("easySHARE_data.rda")
+data <- easySHARE_rel8_0_0
+
+# House data
+hdata <- read.csv("houseprices.csv")
+```
+
+# Residuals vs Fitted Lineups
+
+```{r RvF Lineup 1 fig.height=7.5, fig.width=9 (LU3)}
+x3 <- rnorm(250)
+y3 <- (0.5*x3-1)*(0.5*x3+1) + rnorm(250, sd = 0.4)
+samp3 <- data.frame(x=x3, y=y3)
+# plot(x,y)
+
+samp_mod3 <- y3 ~ x3
+samp_fit3 <- lm(samp_mod3, data = samp3)
+
+
+aug_samp3 <- augment(samp_fit3)
+lineup_resids3 <- lineup(null_lm(samp_mod3, method = "boot"), true = aug_samp3, n=9, pos=8)
+lineup_resids3_woL <- lineup(null_lm(samp_mod3, method = "boot"), true = aug_samp3, n=9, pos=3)
+
+lineup_resids3 %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = (.resid-mean(.resid))/sd(.resid))) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("FLU1_RvF_wL(8).png", path = "Final Lineups/RvF Lineups/Lineup 1"))
+
+lineup_resids3_woL %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = (.resid-mean(.resid))/sd(.resid))) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("FLU1_RvF_woL(3).png", path = "Final Lineups/RvF Lineups/Lineup 1"))
+```
+
+```{r RvF Lineup 2 fig.height=7.5, fig.width=9 (LU11)}
+set.seed(57)
+house_samp2 <- hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+house_samp2$Noise <- 10^6 * rnorm(250, sd=1.5)
+house_samp2$LotArea <- house_samp2$LotArea + (mean(house_samp2$LotArea)*rnorm(250, sd=0.4))
+
+house_mod2 <- SalePrice ~ LotArea 
+
+house_fit2 <- lm(house_mod2, data = house_samp2)
+
+aug_samph2 <- augment(house_fit2)
+lineup_resids_h2 <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=6)
+lineup_resids_h2_woL <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=3)
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = (.resid-mean(.resid))/sd(.resid))) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("FLU2_RvF_wL(6).png", path = "Final Lineups/RvF Lineups/Lineup 2"))
+
+lineup_resids_h2_woL %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = (.resid-mean(.resid))/sd(.resid))) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("FLU2_RvF_woL(3).png", path = "Final Lineups/RvF Lineups/Lineup 2"))
+```
+
+```{r RvF Lineup 3 fig.height=7.5, fig.width=9 (LU4)}
+set.seed(234)
+x4 <- rnorm(250)
+y4 <- (0.2*x4+1)*(x4-1)*(-0.2*x4+1)*(-0.2*x4-1) + rnorm(250, sd = 0.5)
+samp4 <- data.frame(x=x4, y=y4)
+
+samp_mod4 <- y4 ~ x4
+samp_fit4 <- lm(samp_mod4, data = samp4)
+
+
+aug_samp4 <- augment(samp_fit4)
+lineup_resids4 <- lineup(null_lm(samp_mod4, method = "boot"), true = aug_samp4, n=9, pos=9)
+lineup_resids4_woL <- lineup(null_lm(samp_mod4, method = "boot"), true = aug_samp4, n=9, pos=2)
+
+lineup_resids4 %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = (.resid-mean(.resid))/sd(.resid))) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("FLU3_RvF_wL(9).png", path = "Final Lineups/RvF Lineups/Lineup 3"))
+
+lineup_resids4_woL %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = (.resid-mean(.resid))/sd(.resid))) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("FLU3_RvF_woL(2).png", path = "Final Lineups/RvF Lineups/Lineup 3"))
+```
+
+# Scale-Location Lineups
+
+```{r SL Lineup 1 fig.height=7.5, fig.width=9 (LU6)}
+x6 <- rnorm(250)
+y6 <- -(0.2*x6-2)^2*(0.25*x6+1)*(x6^2-4) + rnorm(250, sd = 3)
+samp6 <- data.frame(x=x6, y=y6)
+
+samp_mod6 <- y6 ~ x6
+samp_fit6 <- lm(samp_mod6, data = samp6)
+
+
+aug_samp6 <- augment(samp_fit6)
+lineup_resids6 <- lineup(null_lm(samp_mod6, method = "boot"), true = aug_samp6, n=9, pos=7)
+lineup_resids6_woL <- lineup(null_lm(samp_mod6, method = "boot"), true = aug_samp6, n=9, pos=4)
+
+
+lineup_resids6 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = (.scale_null-mean(.scale_null))/sd(.scale_null))) +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("FLU1_SL_wL(7).png", path = "Final Lineups/SL Lineups/Lineup 1"))
+
+lineup_resids6_woL %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("FLU1_SL_woL(4).png", path = "Final Lineups/SL Lineups/Lineup 1"))
+
+```
+
+```{r SL Lineup 2 (SHARE) fig.height=7.5, fig.width=9 (LU1)}
+set.seed(500)
+samp1 <- data[sample(nrow(data), 250), ] %>% 
+  filter(bmi>18 | bmi < 35) %>%
+  select(all_of(c("bmi", "age")))
+
+samp_mod1 <- bmi ~ age
+samp_fit1 <- lm(samp_mod1, data = samp1)
+
+
+aug_samp1 <- augment(samp_fit1)
+lineup_resids1 <- lineup(null_lm(samp_mod1, method = "boot"), true = aug_samp1, n=9, pos=2)
+lineup_resids1_woL <- lineup(null_lm(samp_mod1, method = "boot"), true = aug_samp1, n=9, pos=5)
+
+
+lineup_resids1 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x =(.fitted-mean(.fitted))/sd(.fitted), y = (.scale_null-mean(.scale_null))/sd(.scale_null))) +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("FLU2_SL_wL(2).png", path = "Final Lineups/SL Lineups/Lineup 2"))
+
+lineup_resids1_woL %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("FLU2_SL_woL(5).png", path = "Final Lineups/SL Lineups/Lineup 2"))
+```
+
+```{r RvF Lineup 1 fig.height=7.5, fig.width=9 (LU11)}
+set.seed(57)
+house_samp2 <- hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+house_samp2$Noise <- rnorm(250, sd=0.5)
+
+house_mod2 <- SalePrice ~ LotArea + Noise
+
+house_fit2 <- lm(house_mod2, data = house_samp2)
+
+aug_samph2 <- augment(house_fit2)
+lineup_resids_h2 <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=6)
+lineup_resids_h2_woL <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=8)
+
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = (.scale_null-mean(.scale_null))/sd(.scale_null))) +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("FLU3_SL_wL(6).png", path = "Final Lineups/SL Lineups/Lineup 3"))
+
+lineup_resids_h2_woL %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = (.fitted-mean(.fitted))/sd(.fitted), y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("FLU3_SL_woL(8).png", path = "Final Lineups/SL Lineups/Lineup 3"))
+```

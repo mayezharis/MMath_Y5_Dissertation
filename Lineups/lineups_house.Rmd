@@ -1,0 +1,463 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+set.seed("1234")
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(gridExtra))
+suppressPackageStartupMessages(library(countrycode))
+suppressPackageStartupMessages(library(visdat))
+suppressPackageStartupMessages(library(interactions))
+suppressPackageStartupMessages(library(forestplot))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(viridis))
+suppressPackageStartupMessages(library(xtable))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(naivebayes))
+suppressPackageStartupMessages(library(scales))
+```
+
+```{r data-clean}
+# Loading data
+hdata <- read.csv("houseprices.csv")
+```
+
+```{r data-clean}
+# Compute the number of missing values
+# sum(is.na(hdata[hdata < 0]))
+
+# data$GarageType[which(is.na(hdata$GarageType) == TRUE)] <- "NA"
+
+# Computing the average SalePrice to make the SalePrice variable binary
+lr_hdata = na.omit(hdata[, !names(hdata) == "Id"])
+
+# Excluding observations which are negligible in number for certain features
+lr_hdata <- lr_hdata[!lr_hdata$Heating %in% c("Floor", "OthW"), ]
+lr_hdata <- lr_hdata[!lr_hdata$Utilities %in% c("NoSeWa"), ]
+lr_hdata <- lr_hdata[!lr_hdata$Electrical %in% c("Mix"), ]
+lr_hdata <- lr_hdata[!lr_hdata$KitchenAbvGr %in% c("3", "0"), ]
+lr_hdata <- lr_hdata[!lr_hdata$Neighborhood %in% c("Blueste"), ]
+# sum(lr_hdata[,lr_hdata$SalePrice == Average_sale_price]) # Mention that none of the SP = Average
+
+```
+
+
+```{r categorising}
+
+# List of variables that are to be categorical and ordinal
+categorical_list <- c("Street", "LotShape", "LandContour", "Utilities", "Neighborhood", 
+                     "BldgType", "HouseStyle", "RoofStyle", "Foundation", "Heating", 
+                     "CentralAir", "Electrical", "KitchenQual", "GarageType", "MoSold")
+
+ordinal_list <- c("FullBath", "HalfBath", "KitchenAbvGr", "Fireplaces")
+
+
+# Factor the categorical and ordinal variables
+for (column in categorical_list) {
+  lr_hdata[, column] <- factor(lr_hdata[, column])
+}
+
+for (column in ordinal_list) {
+  lr_hdata[, column] <- factor(lr_hdata[, column], ordered = TRUE)
+}
+```
+
+
+```{r Lineup 1}
+
+house_samp1 <- lr_hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+
+house_mod1 <- SalePrice ~ LotArea + YearBuilt + TotalBsmtSF
+
+house_fit1 <- lm(house_mod1, data = house_samp1)
+
+aug_samph1 <- augment(house_fit1)
+lineup_resids_h1 <- lineup(null_lm(house_mod1, method = "boot"), true = aug_samph1, n=9, pos=5)
+
+lineup_resids_h1 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 8, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH1_RvF_wL.png", path = "Mock Lineups/House Lineup 1 (pos5)"))
+
+lineup_resids_h1 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 8, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH1_RvF_woL.png", path = "Mock Lineups/House Lineup 1 (pos5)"))
+
+
+
+lineup_resids_h1 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 8, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH1_SL_wL.png", path = "Mock Lineups/House Lineup 1 (pos5)"))
+
+lineup_resids_h1 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 8, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH1_SL_woL.png", path = "Mock Lineups/House Lineup 1 (pos5)"))
+
+```
+
+```{r seed 38}
+# seeds = "38", "39", "57", "61", "62", "77"
+set.seed(38)
+house_samp2 <- lr_hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+house_samp2$Noise <- rnorm(250, sd=0.5)
+
+house_mod2 <- SalePrice ~ LotArea + YearBuilt # + Noise
+
+house_fit2 <- lm(house_mod2, data = house_samp2)
+
+aug_samph2 <- augment(house_fit2)
+lineup_resids_h2 <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=4)
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 9, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH2_RvF_wL.png", path = "Mock Lineups/House Lineup 2 (pos4)"))
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 9, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH2_RvF_woL.png", path = "Mock Lineups/House Lineup 2 (pos4)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 9, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+ggsave("LUH2_SL_wL.png", path = "Mock Lineups/House Lineup 2 (pos4)")
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 9, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+ggsave("LUH2_SL_woL.png", path = "Mock Lineups/House Lineup 2 (pos4)")
+
+
+```
+
+```{r seed 39}
+set.seed(39)
+house_samp2 <- lr_hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+
+house_mod2 <- SalePrice ~ LotArea + YearBuilt
+
+house_fit2 <- lm(house_mod2, data = house_samp2)
+
+aug_samph2 <- augment(house_fit2)
+lineup_resids_h2 <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=8)
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 10, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH3_RvF_wL.png", path = "Mock Lineups/House Lineup 3 (pos8)"))
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 10, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH3_RvF_woL.png", path = "Mock Lineups/House Lineup 3 (pos8)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 10, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH3_SL_wL.png", path = "Mock Lineups/House Lineup 3 (pos8)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 10, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH3_SL_woL.png", path = "Mock Lineups/House Lineup 3 (pos8)"))
+
+
+```
+
+```{r seed 57}
+set.seed(57)
+house_samp2 <- lr_hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+house_samp2$Noise <- rnorm(250, sd=0.5)
+
+house_mod2 <- SalePrice ~ LotArea + Noise
+
+house_fit2 <- lm(house_mod2, data = house_samp2)
+
+aug_samph2 <- augment(house_fit2)
+lineup_resids_h2 <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=6)
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 11, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH4_RvF_wL.png", path = "Mock Lineups/House Lineup 4 (pos6)"))
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 11, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH4_RvF_woL.png", path = "Mock Lineups/House Lineup 4 (pos6)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 11, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH4_SL_wL.png", path = "Mock Lineups/House Lineup 4 (pos6)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 11, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH4_SL_woL.png", path = "Mock Lineups/House Lineup 4 (pos6)"))
+
+
+```
+
+```{r seed 61}
+set.seed(61)
+house_samp2 <- lr_hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+house_samp2$Noise <- rnorm(250, sd=0.5)
+
+house_mod2 <- SalePrice ~ LotArea + Noise
+
+house_fit2 <- lm(house_mod2, data = house_samp2)
+
+aug_samph2 <- augment(house_fit2)
+lineup_resids_h2 <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=1)
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 12, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH5_RvF_wL.png", path = "Mock Lineups/House Lineup 5 (pos1)"))
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 12, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH5_RvF_woL.png", path = "Mock Lineups/House Lineup 5 (pos1)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 12, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH5_SL_wL.png", path = "Mock Lineups/House Lineup 5 (pos1)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 12, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH5_SL_woL.png", path = "Mock Lineups/House Lineup 5 (pos1)"))
+```
+
+```{r seed 62}
+set.seed(62)
+house_samp2 <- lr_hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+house_samp2$Noise <- rnorm(250, sd=0.5)
+
+house_mod2 <- SalePrice ~ LotArea + Noise
+
+house_fit2 <- lm(house_mod2, data = house_samp2)
+
+aug_samph2 <- augment(house_fit2)
+lineup_resids_h2 <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=3)
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 13, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH6_RvF_wL.png", path = "Mock Lineups/House Lineup 6 (pos3)"))
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 13, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH6_RvF_woL.png", path = "Mock Lineups/House Lineup 6 (pos3)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 13, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH6_SL_wL.png", path = "Mock Lineups/House Lineup 6 (pos3)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 13, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH6_SL_woL.png", path = "Mock Lineups/House Lineup 6 (pos3)"))
+```
+
+```{r seed 3567}
+set.seed(3567)
+house_samp2 <- lr_hdata[sample(nrow(hdata), 250), ] %>%
+  select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))
+house_samp2$Noise <- rnorm(250, sd=0.5)
+
+house_mod2 <- SalePrice ~ LotArea + Noise
+
+house_fit2 <- lm(house_mod2, data = house_samp2)
+
+aug_samph2 <- augment(house_fit2)
+lineup_resids_h2 <- lineup(null_lm(house_mod2, method = "boot"), true = aug_samph2, n=9, pos=6)
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 14, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH7_RvF_wL.png", path = "Mock Lineups/House Lineup 7 (pos6)"))
+
+lineup_resids_h2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 14, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LUH7_RvF_woL.png", path = "Mock Lineups/House Lineup 7 (pos6)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 14, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH7_SL_wL.png", path = "Mock Lineups/House Lineup 7 (pos6)"))
+
+lineup_resids_h2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 14, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LUH7_SL_woL.png", path = "Mock Lineups/House Lineup 7 (pos6)"))
+```

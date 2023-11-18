@@ -1,0 +1,581 @@
+```{r setup, echo=FALSE, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("gridExtra"))
+suppressPackageStartupMessages(library("visdat"))
+suppressPackageStartupMessages(library("countrycode"))
+suppressPackageStartupMessages(library("ggplot2"))
+suppressPackageStartupMessages(library("knitr"))
+suppressPackageStartupMessages(library("nullabor"))
+suppressPackageStartupMessages(library("ggthemes"))
+suppressPackageStartupMessages(library("broom"))
+suppressPackageStartupMessages(library("latex2exp"))
+```
+
+```{r Load-data}
+# Load and store data
+load("easySHARE_data.rda")
+data <- easySHARE_rel8_0_0
+```
+
+```{r fix-missing-data}
+# Set missing values to NA       
+data[data < 0] <- 0
+
+# Replace country codes with country names
+data$country_mod <- countrycode(factor(data$country_mod),
+  origin = "iso3n",
+  destination = "country.name"
+)
+```
+
+```{r Set-lists}
+# binary variables
+factor_list <- c(
+  "female", "dn004_mod",
+  "partnerinhh", "mother_alive", "father_alive", "ever_smoked",
+  "hc012_", "hc029_"
+)
+
+# variables with more than two levels
+ordered_list <- c(
+  "iv009_mod", "hhsize", "eurod",
+  "ch001_", "chronic_mod", "adla", "br015_", "co007_",
+  "br010_mod", "maxgrip", "sphus", "isced1997_r"
+)
+
+# continuous variables
+nonfactor_list <- c("age", "country_mod")
+```
+
+```{r factor-levels}
+# Factoring binary variables as dummy variables
+for (column in factor_list) {
+  if (column != "hc029_") {
+    data[, column] <- ifelse(data[, column] == "1", 1, 0)
+  } else {
+    data$hc029_ <- ifelse(data[, column] == "5", 0, 1)
+  }
+  data[, column] <- factor(data[, column], levels = c(0, 1), labels = c("No", "Yes"))
+}
+
+
+# Factor non-binary variables
+for (column in ordered_list) {
+  data[, column] <- factor(data[, column])
+}
+
+# Simplifying levels for specific variables
+levels(data$isced1997_r) <- list(
+  "Secondary and Below" = as.character(0:3),
+  "Post Secondary" = as.character(4:6),
+  "Other" = as.character(95:96)
+)
+
+levels(data$eurod) <- list(
+  "Not Depressed" = as.character(0:3),
+  "Somewhat Depressed" = as.character(4:6),
+  "Relatively Depressed" = as.character(7:9),
+  "Very Depressed" = as.character(10:12)
+)
+
+levels(data$hhsize) <- list(
+  "Up to 4" = as.character(1:4),
+  "More than 4" = as.character(c(4:12, 14:15))
+)
+
+
+levels(data$iv009_mod) <- list(
+  "City_sub" = as.character(1:2),
+  "Town_rural" = as.character(3:5)
+)
+
+levels(data$sphus) <- list(
+  "Good" = as.character(1:3),
+  "Not Good" = as.character(4:5)
+)
+
+levels(data$ch001_) <- list(
+  "Up to 2" = as.character(0:2),
+  "More than 2" = as.character(3:19)
+)
+
+levels(data$chronic_mod) <- list(
+  "0" = as.character(0),
+  "1-3" = as.character(1:3),
+  "4-10" = as.character(4:10)
+)
+
+levels(data$adla) <- list(
+  "High Mobility" = as.character(0:2),
+  "Low Mobility" = as.character(3:5)
+)
+
+levels(data$br015_) <- list(
+  "Often" = as.character(1:2),
+  "Rarely" = as.character(3:4)
+)
+
+levels(data$co007_) <- list(
+  "With Difficulty" = as.character(1:2),
+  "Relatively easily" = as.character(3:4)
+)
+
+levels(data$br010_mod) <- list(
+  "Rarely" = as.character(1:2),
+  "Occasionally" = as.character(3:4),
+  "Regularly" = as.character(5:7)
+)
+
+levels(data$maxgrip) <- list(
+  "Low" = as.character(1:35),
+  "High" = as.character(36:99)
+)
+```
+
+```{r setting-up-data}
+factor_list2 <- c(
+  "female", "dn004_mod",
+  "partnerinhh", "ever_smoked",
+  "hc012_", "hc029_"
+)
+
+# variables with more than two levels
+ordered_list2 <- c(
+  "iv009_mod", "hhsize", "eurod",
+  "ch001_", "chronic_mod", "adla", "br015_", "co007_",
+  "br010_mod", "maxgrip", "sphus", "isced1997_r"
+)
+
+# continuous variables
+nonfactor_list2 <- c("age")
+
+```
+
+
+```{r export dataset lol}
+
+write.csv(data, "share_data.csv", row.names=FALSE)
+
+```
+
+
+## Lineups
+
+
+```{r Lineup 1 (SHARE) fig.height=7.5, fig.width=9}
+set.seed(500)
+samp1 <- data[sample(nrow(data), 250), ] %>% 
+  filter(bmi>18 | bmi < 35) %>%
+  select(all_of(c("bmi", "age")))
+
+samp_mod1 <- bmi ~ age
+samp_fit1 <- lm(samp_mod1, data = samp1)
+
+
+aug_samp1 <- augment(samp_fit1)
+lineup_resids1 <- lineup(null_lm(samp_mod1, method = "boot"), true = aug_samp1, n=9, pos=7)
+
+
+lineup_resids1 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 1, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU1_RvF_wL.png", path = "Mock Lineups/Lineup 1 (pos7)"))
+
+lineup_resids1 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 1, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU1_RvF_woL.png", path = "Mock Lineups/Lineup 1 (pos7)"))
+
+
+
+lineup_resids1 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 1, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU1_SL_wL.png", path = "Mock Lineups/Lineup 1 (pos7)"))
+
+lineup_resids1 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 1, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU1_SL_woL.png", path = "Mock Lineups/Lineup 1 (pos7)"))
+
+```
+
+```{r Sample 2 fig.height=7.5, fig.width=9}
+set.seed(5)
+samp2 <- data[sample(nrow(data), 250), ] %>%
+  select(all_of(c("bmi", "age")))
+samp2$age <- samp2$age+samp2$bmi+2 +rnorm(250, sd=6)
+
+samp_mod2 <- bmi ~ age 
+samp_fit2 <- lm(samp_mod2, data = samp2)
+
+
+aug_samp2 <- augment(samp_fit2)
+lineup_resids2 <- lineup(null_lm(samp_mod2, method = "boot"), true = aug_samp2, n=9, pos=4)
+
+lineup_resids2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 2, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU2_RvF_wL.png", path = "Mock Lineups/Lineup 2 (pos4)"))
+
+lineup_resids2 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 2, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU2_RvF_woL.png", path = "Mock Lineups/Lineup 2 (pos4)"))
+
+
+lineup_resids2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 2, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU2_SL_wL.png", path = "Mock Lineups/Lineup 2 (pos4)"))
+
+lineup_resids2 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 2, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU2_SL_woL.png", path = "Mock Lineups/Lineup 2 (pos4)"))
+
+# real plot is no5
+```
+
+```{r Sample 3 fig.height=7.5, fig.width=9}
+x3 <- rnorm(250)
+y3 <- (0.5*x3-1)*(0.5*x3+1) + rnorm(250, sd = 0.4)
+samp3 <- data.frame(x=x3, y=y3)
+# plot(x,y)
+
+samp_mod3 <- y3 ~ x3
+samp_fit3 <- lm(samp_mod3, data = samp3)
+
+
+aug_samp3 <- augment(samp_fit3)
+lineup_resids3 <- lineup(null_lm(samp_mod3, method = "boot"), true = aug_samp3, n=9, pos=1)
+
+lineup_resids3 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 3, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU3_RvF_wL.png", path = "Mock Lineups/Lineup 3 (pos1)"))
+
+lineup_resids3 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 3, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU3_RvF_woL.png", path = "Mock Lineups/Lineup 3 (pos1)"))
+
+
+
+lineup_resids3 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 3, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU3_SL_wL.png", path = "Mock Lineups/Lineup 3 (pos1)"))
+
+lineup_resids3 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 3, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU3_SL_woL.png", path = "Mock Lineups/Lineup 3 (pos1)"))
+
+```
+
+```{r Sample 4 fig.height=7.5, fig.width=9}
+
+x4 <- rnorm(250)
+y4 <- (0.2*x4+1)*(x4-1)*(-0.2*x4+1)*(-0.2*x4-1) + rnorm(250, sd = 0.3)
+samp4 <- data.frame(x=x4, y=y4)
+# plot(x,y)
+
+samp_mod4 <- y4 ~ x4
+samp_fit4 <- lm(samp_mod4, data = samp4)
+
+
+aug_samp4 <- augment(samp_fit4)
+lineup_resids4 <- lineup(null_lm(samp_mod4, method = "boot"), true = aug_samp4, n=9, pos=9)
+
+lineup_resids4 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 4, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU4_RvF_wL.png", path = "Mock Lineups/Lineup 4 (pos9)"))
+
+lineup_resids4 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 4, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU4_RvF_woL.png", path = "Mock Lineups/Lineup 4 (pos9)"))
+
+
+
+lineup_resids4 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 4, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU4_SL_wL.png", path = "Mock Lineups/Lineup 4 (pos9)"))
+
+lineup_resids4 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 4, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU4_SL_woL.png", path = "Mock Lineups/Lineup 4 (pos9)"))
+
+# real plot is no6
+```
+
+
+```{r Sample 5 fig.height=7.5, fig.width=9}
+set.seed(1245)
+samp5 <- data[sample(nrow(data), 250), ] %>% 
+  filter(bmi>18 | bmi < 35) %>%
+  select(all_of(c("bmi", "age", "female")))
+samp5$female <- samp5$female + (samp5$bmi*rnorm(250, sd=0.5))
+
+samp_mod5 <- bmi ~ age + female
+samp_fit5 <- lm(samp_mod5, data = samp5)
+
+
+aug_samp5 <- augment(samp_fit5)
+lineup_resids5 <- lineup(null_lm(samp_mod5, method = "boot"), true = aug_samp5, n=9, pos=3)
+
+lineup_resids5 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 5, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU5_RvF_wL.png", path = "Mock Lineups/Lineup 5 (pos3)"))
+
+lineup_resids5 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 5, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU5_RvF_woL.png", path = "Mock Lineups/Lineup 5 (pos3)"))
+
+
+
+lineup_resids5 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 5, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU5_SL_wL.png", path = "Mock Lineups/Lineup 5 (pos3)"))
+
+lineup_resids5 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 5, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU5_SL_woL.png", path = "Mock Lineups/Lineup 5 (pos3)"))
+# real plot is no6
+```
+```{r Sample 6 fig.height=7.5, fig.width=9}
+x6 <- rnorm(250)
+y6 <- -(0.2*x6-2)^2*(0.25*x6+1)*(x6^2-4) + rnorm(250, sd = 3)
+samp6 <- data.frame(x=x6, y=y6)
+
+samp_mod6 <- y6 ~ x6
+samp_fit6 <- lm(samp_mod6, data = samp6)
+
+
+aug_samp6 <- augment(samp_fit6)
+lineup_resids6 <- lineup(null_lm(samp_mod6, method = "boot"), true = aug_samp6, n=9, pos=7)
+
+lineup_resids6 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 6, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+ggsave("LU6_RvF_wL.png", path = "Mock Lineups/Lineup 6 (pos7)")
+
+lineup_resids6 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 6, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+ggsave("LU6_RvF_woL.png", path = "Mock Lineups/Lineup 6 (pos7)")
+
+
+
+lineup_resids6 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 6, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+ggsave("LU6_SL_wL.png", path = "Mock Lineups/Lineup 6 (pos7)")
+
+lineup_resids6 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 6, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+ggsave("LU6_SL_woL.png", path = "Mock Lineups/Lineup 6 (pos7)")
+
+```
+
+```{r LU5 with 20 plots}
+
+set.seed(1)
+x7 <- rexp(250)
+y7 <- 1 - x7 + (0.5*rnorm(250))
+samp7 <- data.frame(x=x7, y=y7)
+
+samp_mod7 <- y7 ~ x7
+samp_fit7 <- lm(samp_mod7, data = samp7)
+
+aug_samp7 <- augment(samp_fit7)
+lineup_resids7 <- lineup(null_lm(samp_mod7, method = "boot"), true = aug_samp7, n=9, pos=2)
+
+lineup_resids7 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 7, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU7_RvF_wL.png", path = "Mock Lineups/Lineup 7 (pos2)"))
+
+lineup_resids7 %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "black") +
+  geom_point(shape = 1, alpha=0.8) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 7, Residuals vs. Fitted",
+        x ="Fitted values", y = "Residuals")
+suppressMessages(ggsave("LU7_RvF_woL.png", path = "Mock Lineups/Lineup 7 (pos2)"))
+
+
+
+lineup_resids7 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  geom_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 7, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU7_SL_wL.png", path = "Mock Lineups/Lineup 7 (pos2)"))
+
+lineup_resids7 %>%
+  group_by(.sample) %>%
+  mutate(.std.resid_null = .resid/sd(.resid), 
+         .scale_null = sqrt(abs(.std.resid_null))) %>%
+  ggplot(aes(x = .fitted, y = .scale_null)) +
+  geom_point(shape = 1, alpha=0.8, ) +
+  facet_wrap(~ .sample) +
+  labs(title="Lineup 7, Scale-Location",
+        x ="Fitted values", y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+suppressMessages(ggsave("LU7_SL_woL.png", path = "Mock Lineups/Lineup 7 (pos2)"))
+
+```

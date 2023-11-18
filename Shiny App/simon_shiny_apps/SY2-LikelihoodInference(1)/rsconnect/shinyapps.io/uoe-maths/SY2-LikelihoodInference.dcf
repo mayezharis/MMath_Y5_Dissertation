@@ -1,0 +1,13 @@
+name: SY2-LikelihoodInference
+title: SY2-LikelihoodInference
+username:
+account: uoe-maths
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5499959
+bundleId: 5503068
+url: https://uoe-maths.shinyapps.io/SY2-LikelihoodInference/
+when: 1643049953.93174
+lastSyncTime: 1643049953.93174
+asMultiple: FALSE
+asStatic: FALSE
