@@ -3,6 +3,16 @@ y2 <- 5 + 2*x2 + rnorm(length(x2), sd = 0.5)
 data2 <- data.frame(x2=x2,y2=y2)
 fit <- lm(y2~x2, data = data2)
 
+coef1 <- data.frame(a = coef(fit)[1], b = coef(fit)[2])
+
+y3 <- 5 + 2*x2 + rnorm(length(x2), sd = 0.5)
+data3 <- data.frame(x2=x2,y3=y3)
+fit2 <- lm(y3~x2, data = data3)
+
+coef2 <- data.frame(a = coef(fit2)[1], b = coef(fit2)[2])
+
+check <- rbind(coef(fit2), coef1)
+
 ggplot(data = data.frame(x2=Inf, y2 = Inf),
        mapping = aes(x=x2,y=y2)) + 
   geom_point() + 

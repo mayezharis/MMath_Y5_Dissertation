@@ -118,6 +118,7 @@ library(shinyjs)
 library(rhandsontable)
 library(shinycssloaders)
 library(shinyWidgets)
+library(plotly)
 
 
 # DEFINE UI
@@ -243,11 +244,38 @@ server <- function(input, output, session) {
     }
   })
   
+  # Create a reactiveValues for the history of linear fit
+  history_data <- reactiveValues(history = data.frame(intercept = numeric(), slope = numeric()))
+
+  
   # fit a linear model on sample
   mod <- reactive({
     lm(paste(input$y_var, "~", input$x_var), reg_data())
   })
   
+
+  observeEvent(input$resample, {
+    tryCatch({
+      new_row <- data.frame(
+        intercept = coef(mod())[1],
+        slope = coef(mod())[2]
+      )
+      history_data$history <- rbind(history_data$history, new_row)
+      # Update the plot
+      output$fittedLine2 <- renderPlotly({
+        ggplot(data = history_data$history,
+               aes(x = intercept, y = slope)) +
+          geom_line() +
+          labs(title = "History of Linear Fits") + 
+          theme_minimal() +
+          theme(legend.position = "none")
+        })
+      }, error = function(e) {
+        print(paste("Error:", e$message))
+      })
+    })
+  
+
   # plotData <- reactive({
   #   reactiveValues(regdata = reg_data(),
   #                  lines = data.frame(a = coef(mod())[1], b = coef(mod())[2]),
@@ -258,16 +286,23 @@ server <- function(input, output, session) {
   #                    labs(title = "History")
   #                  )})
   
-  lines <- reactive({data.frame(a = coef(mod())[1], b = coef(mod())[2])})
-
-  plotData <- reactive({
-    ggplot(data = data.frame(x = Inf, y = Inf),
-           mapping = aes_string(x = input$x_var, y = input$y_var)) +
-      geom_point() +
-      theme_bw() +
-      labs(title = "History")
-  })
   
+  
+  #######################################################################
+  #######################################################################
+  # lines <- reactive({data.frame(a = coef(mod())[1], b = coef(mod())[2])})
+  #######################################################################
+  #######################################################################
+  
+  
+  
+  # plotData <- reactive({
+  #   reg_data() %>%
+  #     ggplot(data = data.frame(),
+  #            mapping = aes_string(x = input$x_var, y = input$y_var)) #+
+  #     # labs(title = "History")
+  #   })
+  # 
 
   # output$fittedEqn <- renderTable({
   #   mod() %>%
@@ -275,16 +310,31 @@ server <- function(input, output, session) {
   #     select(term, estimate)
   # })
   
+  
+  
+  ######################################################################
+  ######################################################################
+  #####################  FIRST FITTED LINE  ############################
+  ######################################################################
+  ######################################################################
+  
+  
   output$fittedLine1 <- renderPlot({
     reg_data() %>%
       ggplot(aes_string(x = input$x_var, y = input$y_var)) +
       geom_point(shape = 1) +
       labs(title = "Data Fit") +
       # geom_smooth(method = "lm", se = FALSE, col="blue")
-      geom_abline(intercept = lines()$a[1],
-                  slope = lines()$b[1],
+      geom_abline(intercept = coef(mod())[1],
+                  slope = coef(mod())[2],
                   col = "blue", linewidth = 0.5)
     })
+  ######################################################################
+  ######################################################################
+  ######################################################################
+  
+  
+  
   
   
   # observeEvent(input$resample, {
@@ -296,24 +346,69 @@ server <- function(input, output, session) {
   #   plotData()$lines <- rbind(coef(mod()), plotData()$lines) 
   # })
   
-  eventReactive(input$resample, {
-    plotData() <- plotData() +
-      geom_abline(intercept = lines()$a[1],
-                  slope = lines()$b[1],
-                  col = "grey60", linewidth = 0.75)
-    lines() <- rbind(coef(mod()), lines()) 
-  })
-  
-  
-  output$fittedLine2 <- renderPlot({
-    if(input$resample >= 0){
-      plotData() +
-        geom_abline(intercept = lines()$a[1], 
-                    slope = lines()$b[1], 
-                    col = "seagreen", linewidth = 1)
-      }
-    })
+  # values <- reactiveValues(plot = ggplot())
 
+  
+  ##########################################################
+  ##########################################################
+  # output$fittedLine2 <- renderPlot({
+  #   # input$x_var; input$y_var; input$resample
+  #   reg_data() %>%
+  #     ggplot(aes_string(x = input$x_var, y = input$y_var)) +
+  #     geom_abline(intercept = lines()$a[1],
+  #                 slope = lines()$b[1],
+  #                 col = "cornflowerblue", linewidth = 0.75)
+  #   # values$plot <- p
+  #   })
+  ##########################################################
+  ##########################################################
+  
+  
+  
+  
+  #########################################################
+  ##########################################################
+  # lineUpdate <- reactive({
+  #   if(input$resample >= 0){
+  #     rbind(coef(mod()), lines()) 
+  #     }
+  #   })
+  #########################################################
+  ##########################################################
+  
+  
+  
+  
+  # observeEvent(values$plot,{ 
+  #   output$fittedLine2 <- renderPlot({
+  #     isolate(values$plot)
+  #   })
+  # })
+
+  
+  
+   
+  ########################################################
+  ########################################################
+  # output$fittedLine2 <- reactive({
+  #   if(input$resample > 0) {
+  #   output$fittedLine2 +
+  #     geom_abline(intercept = lineUpdate()$a[1],
+  #                 slope = lineUpdate()$b[1],
+  #                 col = "seagreen", linewidth = 1)}
+  #   })
+  ########################################################
+  ########################################################
+  
+  
+  
+  
+  
+  ######################################################################
+  ######################################################################
+  ######################  DIAGNOSTIC PLOTS  ############################
+  ######################################################################
+  ######################################################################
   
   output$origPlot1 <- renderPlot({
     obsData <- augment(mod())
@@ -371,7 +466,9 @@ server <- function(input, output, session) {
         labs(title = "Normal Q-Q Plot", x = "N(0, 1) quantiles", y = "Standardized residuals"))
     dataPlot
   })
-  
+  ######################################################################
+  ######################################################################
+  ###################################################################### 
   
 }
 
