@@ -193,11 +193,28 @@ server <- function(input, output, session) {
   # Create a reactiveValues for the history of linear fit
   history_data <- reactiveValues(history = data.frame(intercept = numeric(), slope = numeric()))
 
-
   # fit a linear model on sample
   mod <- reactive({
     lm(paste(input$y_var, "~", input$x_var), reg_data())
   })
+  
+  obsData <- reactive({
+    augment(mod())
+  })
+  
+  rvf_first <- reactive({obsData() %>% ggplot(aes(x = .fitted, y = .resid)) +
+    geom_point(shape = 1) +
+    geom_hline(yintercept = 0, linetype = 2, color = "black") +
+    stat_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5, n = sample_size()) +
+    labs(title = "Residuals vs. Fitted",
+         x = "Fitted values",
+         y = "Residuals") +
+    coord_cartesian(xlim = c(min(obsData()$.fitted), max(obsData()$.fitted)),
+                    ylim = c(min(obsData()$.resid), max(obsData()$.resid)))})
+  
+  rvf_info <- reactive({ggplot_build(rvf_first)$data[[3]][, c(input$x_var,input$y_var)]})
+  
+  
   
   # history plots
   observeEvent(input$resample, {
@@ -259,10 +276,6 @@ server <- function(input, output, session) {
   ######################  DIAGNOSTIC PLOTS  ############################
   ######################################################################
   ######################################################################
-
-  obsData <- reactive({
-    augment(mod())
-  })
   
   output$rvfPlot1 <- renderPlot({
     rvfPlot <- switch(input$plot_options_rvf,
