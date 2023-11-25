@@ -93,7 +93,7 @@ ui <-
                     withSpinner(plotOutput("origPlot1"))),   # render the plots
         br(),
         splitLayout(cellWidths = c("50%", "50%"),
-                    withSpinner(plotOutput("fittedLine2")))#,
+                    plotOutput("fittedLine2"))#,
         # withSpinner(plotOutput("origPlot2"))),   # render the plots
         # tableOutput("fittedEqn"))
       )
@@ -125,6 +125,8 @@ server <- function(input, output, session) {
     }
     return(dataset)
   })
+  
+  
   observeEvent(data(), {
     updateSelectInput(inputId = "y_var",
                       label = "Y Variable:",
