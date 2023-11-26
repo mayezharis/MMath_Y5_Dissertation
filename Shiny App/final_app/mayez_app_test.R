@@ -340,26 +340,13 @@ server <- function(input, output, session) {
     
     
     output$qq_history_plot <- renderPlot({
-      qq_empty() + 
-        # stat_qq(data = qq_history_data$history,
-        #         mapping = aes(sample = sample), 
-        #         col = "slateblue",
-        #         geom = "path")
+      qq_empty() +
         geom_line(data = qq_history_data$history,
                   aes(x = x, y = y, group = group),
                   col = "slateblue2", linewidth = 0.5,
                   inherit.aes = FALSE)
     })
   })
-  
-  # output$qqPlot1 <- renderPlot({
-  #   qqPlot <- obsData() %>%
-  #     ggplot(aes(sample = .std.resid)) +
-  #     stat_qq_line() +
-  #     stat_qq() +
-  #     labs(title = "Normal Q-Q Plot", x = "N(0, 1) quantiles", y = "Standardized residuals")
-  #   qqPlot
-  # })
   
   ######################################################################
   ######################################################################
