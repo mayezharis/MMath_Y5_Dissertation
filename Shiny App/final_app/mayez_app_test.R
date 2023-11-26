@@ -103,7 +103,8 @@ ui <-
                              withSpinner(plotOutput("rvfPlot1"))),   # render the plots
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
-                             plotOutput("fittedLineHrvf"))))
+                             plotOutput("fittedLineHrvf"),
+                             plotOutput("rvf_history_plot"))))
              )
     ),
     tabPanel(title = "Scale Location", fluid = TRUE,
@@ -121,7 +122,8 @@ ui <-
                              withSpinner(plotOutput("slPlot1"))),   # render the plots
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
-                             plotOutput("fittedLineHsl"))
+                             plotOutput("fittedLineHsl"),
+                             plotOutput("sl_history_plot"))
                )
                )
              )
@@ -135,7 +137,8 @@ ui <-
                              withSpinner(plotOutput("qqPlot1"))),   # render the plots
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
-                             plotOutput("fittedLineHqq"))))
+                             plotOutput("fittedLineHqq"),
+                             plotOutput("qq_history_plot"))))
              )
     )
   )
@@ -180,7 +183,15 @@ server <- function(input, output, session) {
                       choices = names(data()))
   })
 
-
+  
+  mod_full <- reactive({
+    lm(paste(input$y_var, "~", input$x_var), data())
+  })
+  aug_data_full <- reactive({
+    augment(mod_full())
+  })
+  
+  
   # Define the data sample with the inputted sample size
   reg_data <- reactive({
     if (input$resample >= 0) {
@@ -189,9 +200,6 @@ server <- function(input, output, session) {
       return(data_sample[, c(input$x_var, input$y_var)])
     }
   })
-
-  # Create a reactiveValues for the history of linear fit
-  history_data <- reactiveValues(history = data.frame(intercept = numeric(), slope = numeric()))
 
   # fit a linear model on sample
   mod <- reactive({
@@ -202,20 +210,175 @@ server <- function(input, output, session) {
     augment(mod())
   })
   
-  rvf_first <- reactive({obsData() %>% ggplot(aes(x = .fitted, y = .resid)) +
-    geom_point(alpha = 0) +
-    geom_hline(yintercept = 0, linetype = 2, color = "black") +
-    stat_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5, n = sample_size()) +
-    labs(title = "Residuals vs. Fitted History",
-         x = "Fitted values",
-         y = "Residuals") +
-    coord_cartesian(xlim = c(min(obsData()$.fitted), max(obsData()$.fitted)),
-                    ylim = c(min(obsData()$.resid), max(obsData()$.resid)))})
+  normalize <- function(x, na.rm = TRUE) {
+    return((x- min(x)) /(max(x)-min(x)))
+  }
   
-  rvf_history_info <- reactive({ggplot_build(rvf_first)$data[[3]][, c(input$x_var,input$y_var)]})
-  
+  ######################################################################
+  ######################################################################
+  ########################  RVF PLOT HISTORY  ##########################
+  ######################################################################
+  ######################################################################
+  rvf_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
   
   
+  
+  rvf_empty <- function() {
+    ggplot(aug_data_full(), aes(x = normalize(.fitted), y = .resid)) +
+      geom_point(alpha = 0) +
+      geom_hline(yintercept = 0, linetype = 2, col = "black") +
+      labs(title = "Residuals vs. Fitted History",
+           x = "Fitted values",
+           y = "Residuals")
+  }
+  
+  rvf_current <- function(data) {
+    data %>% ggplot(aes(x = normalize(.fitted), y = .resid)) +
+      geom_point() +
+      stat_smooth(method = "loess", se = FALSE, n = sample_size())
+  }
+  
+  observeEvent(input$resample, {
+    
+    rvf_new_line <- ggplot_build(rvf_current(obsData()))$data[[2]][, c("x", "y")]
+    
+    rvf_new_line$group <- nrow(rvf_history_data$history) / sample_size() + 1
+    
+    rvf_history_data$history <- rbind(rvf_history_data$history, rvf_new_line)
+    
+    output$rvf_history_plot <- renderPlot({
+      rvf_empty() + 
+        geom_line(data = rvf_history_data$history, 
+                  aes(x = x, y = y, group = group), 
+                  col = "indianred1", linewidth = 0.5)
+    })
+  })
+  
+  ######################################################################
+  ######################################################################
+  ######################################################################
+  
+  
+  ######################################################################
+  ######################################################################
+  ########################  SL PLOT HISTORY  ###########################
+  ######################################################################
+  ######################################################################
+  
+  sl_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
+  
+  
+  sl_empty <- function() {
+    ggplot(aug_data_full(), 
+           aes(x = normalize(.fitted), y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
+      geom_point(alpha = 0) +
+      labs(title = "Scale-Location History",
+           x = "Fitted values",
+           y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+  }
+  
+  sl_current <- function(data) {
+    data %>% ggplot(aes(x = normalize(.fitted), y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
+      geom_point() +
+      stat_smooth(method = "loess", se = FALSE, n = sample_size())
+  }
+  
+  observeEvent(input$resample, {
+    
+    sl_new_line <- ggplot_build(sl_current(obsData()))$data[[2]][, c("x", "y")]
+    
+    sl_new_line$group <- nrow(sl_history_data$history) / sample_size() + 1
+    
+    sl_history_data$history <- rbind(sl_history_data$history, sl_new_line)
+    
+    
+    output$sl_history_plot <- renderPlot({
+      sl_empty() + 
+        geom_line(data = sl_history_data$history, 
+                  aes(x = x, y = y, group = group), 
+                  col = "indianred1", linewidth = 0.5)
+    })
+  })
+  
+  ######################################################################
+  ######################################################################
+  ######################################################################
+  
+  
+  
+  
+  ######################################################################
+  ######################################################################
+  ########################  QQ PLOT HISTORY  ###########################
+  ######################################################################
+  ######################################################################
+  
+  qq_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
+  
+  
+  qq_empty <- function() {
+    aug_data_full() %>% ggplot(aes(sample = .std.resid)) +
+      stat_qq_line() +
+      labs(title = "History of Normal Q-Q Plot", 
+           x = "N(0, 1) quantiles", 
+           y = "Standardized residuals")
+  }
+  
+  qq_current <- function(data) {
+    data %>% ggplot(aes(sample = .std.resid)) +
+      stat_qq_line() +
+      stat_qq(geom = "path")
+  }
+  
+  observeEvent(input$resample, {
+    
+    qq_new_line <- ggplot_build(qq_current(obsData()))$data[[2]][, c("x", "y")]
+    
+    qq_new_line$group <- nrow(qq_history_data$history) / sample_size() + 1
+    
+    qq_history_data$history <- rbind(qq_history_data$history, qq_new_line)
+    
+    
+    output$qq_history_plot <- renderPlot({
+      qq_empty() + 
+        # stat_qq(data = qq_history_data$history,
+        #         mapping = aes(sample = sample), 
+        #         col = "slateblue",
+        #         geom = "path")
+        geom_line(data = qq_history_data$history,
+                  aes(x = x, y = y, group = group),
+                  col = "slateblue2", linewidth = 0.5,
+                  inherit.aes = FALSE)
+    })
+  })
+  
+  # output$qqPlot1 <- renderPlot({
+  #   qqPlot <- obsData() %>%
+  #     ggplot(aes(sample = .std.resid)) +
+  #     stat_qq_line() +
+  #     stat_qq() +
+  #     labs(title = "Normal Q-Q Plot", x = "N(0, 1) quantiles", y = "Standardized residuals")
+  #   qqPlot
+  # })
+  
+  ######################################################################
+  ######################################################################
+  ######################################################################
+  
+  
+  
+  
+  
+
+    
+  ######################################################################
+  ######################################################################
+  ##################  FITTED LINE PLOT HISTORY  ########################
+  ######################################################################
+  ######################################################################
+  
+  # Create a reactiveValues for the history of linear fit
+  history_data <- reactiveValues(history = data.frame(intercept = numeric(), slope = numeric()))
   
   # history plots
   observeEvent(input$resample, {
@@ -239,7 +402,11 @@ server <- function(input, output, session) {
       })
   })
 
+  ######################################################################
+  ######################################################################
+  ######################################################################
 
+  
 
   ######################################################################
   ######################################################################
@@ -286,9 +453,9 @@ server <- function(input, output, session) {
                         stat_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5, n = sample_size()) +
                         labs(title = "Residuals vs. Fitted",
                              x = "Fitted values",
-                             y = "Residuals") +
-                        coord_cartesian(xlim = c(min(obsData()$.fitted), max(obsData()$.fitted)),
-                                        ylim = c(min(obsData()$.resid), max(obsData()$.resid))),
+                             y = "Residuals"), # +
+                        # coord_cartesian(xlim = c(min(obsData()$.fitted), max(obsData()$.fitted)),
+                        #                 ylim = c(min(obsData()$.resid), max(obsData()$.resid))),
                       wCI = obsData() %>% ggplot(aes(x = .fitted, y = .resid)) +
                         geom_point(shape = 1) +
                         geom_hline(yintercept = 0, linetype = 2, color = "black") +
@@ -308,8 +475,8 @@ server <- function(input, output, session) {
   output$qqPlot1 <- renderPlot({
     qqPlot <- obsData() %>%
       ggplot(aes(sample = .std.resid)) +
-      geom_qq_line() +
-      geom_qq() +
+      stat_qq_line() +
+      stat_qq() +
       labs(title = "Normal Q-Q Plot", x = "N(0, 1) quantiles", y = "Standardized residuals")
     qqPlot
   })

@@ -15,6 +15,7 @@ suppressPackageStartupMessages(library("reshape2"))
 suppressPackageStartupMessages(library("readxl"))
 suppressPackageStartupMessages(library("lubridate"))
 suppressPackageStartupMessages(library("openintro"))
+suppressPackageStartupMessages(library("janitor"))
 ```
 
 ```{r}
@@ -112,7 +113,7 @@ e_data <- e_data %>%
 
 
 
-write.csv(e_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/energy_data_cleaned.csv", row.names=FALSE)
+write.csv(e_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/energy_data_cleaned.csv", row.names=FALSE)
 
 # chec_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/energy_data_cleaned.csv")
 
@@ -171,7 +172,7 @@ write.csv(news_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/
 ```
 
 ```{r MLB DATA}
-mlb_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/game_logs.csv")
+mlb_data <- read.csv(unz("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/game_logs.zip", "game_logs.csv"))
 
 # mlb_vars <- c("date", "day_of_week",  "attendance", "length_minutes",
 #               "v_score", "v_at_bats", "v_hits", "v_homeruns", "v_walks", "v_strikeouts", "v_stolen_bases", "v_errors",
@@ -218,9 +219,12 @@ mlb_data_final <- mlb_data_cleaned %>%
   clean_names()
 
 
+mlb_data_final <- remove_outliers(mlb_data_final, names(mlb_data_final))
 
 
-write.csv(mlb_data_final, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/mlb_data_cleaned.csv", row.names = FALSE)
+
+
+write.csv(mlb_data_final, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/mlb_data_cleaned.csv", row.names = FALSE)
 
 
 
@@ -242,7 +246,7 @@ mlb_x_choices <- c("No. of hits by home team" = "h_hits",
 ```
 
 ```{r CRICKET ODI DATA}
-odi_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/cricket_odi_data.csv")
+odi_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/cricket_odi_data.csv")
 
 batting_vars_y <- c("No. of runs scored" = "Innings.Runs.Scored", 
                     "Minutes Batted" = "Innings.Minutes.Batted",
@@ -256,7 +260,7 @@ batting_vars_x <- c("Minutes Batted" = "Innings.Minutes.Batted",
                     "Average Strike Rate" = "Innings.Batting.Strike.Rate")
 
 odi_data[odi_data == "-"|odi_data == ""] <- NA
-# odi_data <- odi_data[!(odi_data == ""),]
+
 
 batting_Vars <- c("Innings.Player", "Innings.Runs.Scored", "Innings.Minutes.Batted", "Innings.Balls.Faced", "Innings.Boundary.Fours", "Innings.Boundary.Sixes", "Innings.Batting.Strike.Rate")
 
@@ -282,17 +286,17 @@ cric_data_cleaned <- cric_bat_data %>%
          "Average Strike Rate" = "Innings.Batting.Strike.Rate") %>%
   clean_names()
 
+cric_data_cleaned <- remove_outliers(cric_data_cleaned, names(cric_data_cleaned))
 
 
 
-
-write.csv(cric_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/cric_bat_data.csv", row.names = FALSE)
+write.csv(cric_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv", row.names = FALSE)
 
 ```
 
 ```{r NBA DATA}
 
-nba_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/NBA_Player_Stats.csv")
+nba_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/NBA_Player_Stats.csv")
 
 nba_data <- na.omit(nba_data)
 

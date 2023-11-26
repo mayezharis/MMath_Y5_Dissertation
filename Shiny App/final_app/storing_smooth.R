@@ -41,4 +41,24 @@ plot_new <- plot_new +
   geom_line(data = model_info, aes(x = x, y = y), color = "red", size = 0.5)
 
 # Display the new plot
-print(plot_new)
+# print(plot_new)
+
+# 
+# fit <- lm(basketball$Average.Points.per.Game ~ basketball$Age)
+# aug_test <- augment(fit)
+# 
+# test_plot <- ggplot(data = aug_test, aes(x = .fitted, y = .resid)) + 
+#   geom_point(alpha = 0) +
+#   geom_hline(yintercept = 0, linetype = 2, col = "black") +
+#   geom_line(data = model_info, aes(x = x, y = y), color = "red", size = 0.5)
+
+
+qq_plot <- aug %>% ggplot(aes(sample = .std.resid)) +
+  stat_qq_line() +
+  stat_qq(geom = "path")
+
+qq_build <- ggplot_build(qq_plot)$data[[2]]["x"]
+
+# qq_new_line$group <- nrow(qq_history_data$history) / sample_size() + 1
+
+nrow(qq_build)
