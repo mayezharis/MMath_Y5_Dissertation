@@ -1,0 +1,300 @@
+```{r Packages & Setup}
+knitr::opts_chunk$set(echo = FALSE)
+suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("gridExtra"))
+suppressPackageStartupMessages(library("visdat"))
+suppressPackageStartupMessages(library("countrycode"))
+suppressPackageStartupMessages(library("ggplot2"))
+suppressPackageStartupMessages(library("knitr"))
+suppressPackageStartupMessages(library("nullabor"))
+suppressPackageStartupMessages(library("ggthemes"))
+suppressPackageStartupMessages(library("broom"))
+suppressPackageStartupMessages(library("latex2exp"))
+suppressPackageStartupMessages(library("reshape2"))
+suppressPackageStartupMessages(library("readxl"))
+suppressPackageStartupMessages(library("lubridate"))
+suppressPackageStartupMessages(library("openintro"))
+suppressPackageStartupMessages(library("janitor"))
+```
+
+```{r Outlier cleaning function}
+
+outliers <- function(x, lower, upper) {
+  Q1 <- quantile(x, probs=lower)
+  Q3 <- quantile(x, probs=upper)
+  iqr = Q3-Q1
+ upper_limit = Q3 + (iqr*1.5)
+ lower_limit = Q1 - (iqr*1.5)
+ 
+ x > upper_limit | x < lower_limit
+}
+
+remove_outliers <- function(df, cols = names(df), lims) {
+  for (col in cols) {
+    df <- df[!outliers(df[[col]], lims[1], lims[2]),]
+  }
+  df
+}
+
+```
+
+
+```{r ENERGY CONSUMPTION DATA}
+e_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/energydata_complete.csv")
+e_data$date <- strptime(e_data$date, format="%Y-%m-%d %H:%M:%S")
+e_data <- na.omit(e_data)
+
+e_data$T_overall <- rowMeans(e_data[,c('T1', 'T2', 'T3', 'T4', 'T5', 'T7', 'T8', 'T9')], na.rm=TRUE)
+e_data$H_overall <- rowMeans(e_data[,c('RH_1', 'RH_2', 'RH_3', 'RH_4', 'RH_5', 'RH_6', 'RH_7', 'RH_8', 'RH_9')], na.rm=TRUE)
+
+e_data$T_bedroom <- rowMeans(e_data[,c('T8', 'T9')], na.rm=TRUE)
+e_data$H_bedroom <- rowMeans(e_data[,c('RH_8', 'RH_9')], na.rm=TRUE)
+
+e_data$T_shared <- rowMeans(e_data[,c('T1', 'T2', 'T4')], na.rm=TRUE)
+e_data$H_shared <- rowMeans(e_data[,c('RH_1', 'RH_2', 'RH_4')], na.rm=TRUE)
+
+# e_data.T_diff <- transform(e_data, new.col = abs(T_overall - T_out))
+# e_data.H_diff <- transform(e_data, new.col = abs(H_overall - RH_out))
+# 
+# e_data.total_energy <- transform(e_data, new.col = Appliances + lights)
+
+e_data$T_diff <- abs(e_data$T_overall - e_data$T_out)
+e_data$H_diff <- abs(e_data$H_overall - e_data$RH_out)
+
+e_data$total_energy <- e_data$Appliances + e_data$lights
+
+
+
+list_of_vars_e <- c("Appliances", "lights", "total_energy",
+                    "T_overall", "H_overall", "T_bedroom", 
+                    "H_bedroom", "T_shared", "H_shared", 
+                    "T_diff", "H_diff")
+
+e_data <- remove_outliers(e_data, list_of_vars_e, lims = c(.1, .9))
+
+e_data <- e_data %>%
+  select(all_of(list_of_vars_e)) %>%
+  rename("Average indoor temperature" = "T_overall",
+         "Average indoor humidity" = "H_overall",
+         "Average bedroom temperature" = "T_bedroom",
+         "Average bedroom humidity" = "H_bedroom",
+         "Average temperature in shared rooms" = "T_shared",
+         "Average humidity in shared rooms" = "H_shared",
+         "Difference between indoor and outdoor temp." = "T_diff",
+         "Difference between indoor and outdoor humidity" = "H_diff",
+         "Total energy used" = "total_energy",
+         "Energy used by appliances" = "Appliances",
+         "Energy used by lights" = "lights") %>%
+  clean_names()
+
+
+
+
+write.csv(e_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/energy_data_cleaned.csv", row.names=FALSE)
+
+
+
+```
+
+
+```{r NEWS DATA}
+news_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/OnlineNewsPopularity.csv")
+
+list_of_vars_n <- c("shares", "n_tokens_title", "n_tokens_content", "n_unique_tokens", "num_hrefs", "num_imgs", "num_videos", "average_token_length")
+
+
+news_data <- remove_outliers(news_data, list_of_vars_n, lims = c(.25, .75))
+
+
+news_data_cleaned <- news_data %>%
+  select(all_of(list_of_vars_n)) %>%
+  rename("No. of shares" =  "shares",
+         "No. of words in title" = "n_tokens_title",
+                    "No. of words in text" = "n_tokens_content",
+                    "No. of unique words in text" = "n_unique_tokens",
+                    "No. of links" = "num_hrefs",
+                    "No. of images" = "num_imgs",
+                    "No. of videos" = "num_videos",
+                    "Average word length" = "average_token_length") %>%
+  clean_names()
+
+write.csv(news_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/news_data_cleaned.csv", row.names=FALSE)
+
+```
+
+```{r MLB DATA}
+mlb_data <- read.csv(unz("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/game_logs.zip", "game_logs.csv"))
+
+mlb_vars <- c("attendance", "length_minutes",
+              "v_score", "v_at_bats", "v_hits", "v_homeruns", "v_walks", "v_strikeouts", "v_stolen_bases", "v_errors",
+              "h_score", "h_at_bats", "h_hits", "h_homeruns", "h_walks", "h_strikeouts", "h_stolen_bases", "h_errors")
+
+
+mlb_data_cleaned <- mlb_data %>%
+  select(all_of(mlb_vars)) %>%
+  # filter(date > "1962-01-01") %>%
+  mutate(score_diff = abs(v_score - h_score))
+
+
+mlb_data_cleaned[mlb_data_cleaned < 0] <- NA
+mlb_data_cleaned[mlb_data_cleaned == "na"] <- NA
+mlb_data_cleaned <- na.omit(mlb_data_cleaned)
+# mlb_data_t$date <- strptime(mlb_data_t$date, format="%Y%m%d")
+# mlb_data_t$day_of_week <- as.integer(factor(
+#   mlb_data_t$day_of_week,
+#   levels=c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"),
+#   ordered=TRUE))
+
+
+# ADDING NOISE
+mlb_data_cleaned[names(mlb_data_cleaned)] <- lapply(mlb_data_cleaned[names(mlb_data_cleaned)], jitter, factor = 3)
+
+mlb_data_final <- mlb_data_cleaned %>%
+  rename("Home Team Score" = "h_score",
+         "Visiting Team Score" = "v_score",
+         "Score Difference" = "score_diff",
+         "No. of hits by home team" = "h_hits",
+         "No. of hits by visiting team" = "v_hits",
+         "No. of homeruns by home team" = "h_homeruns",
+         "No. of homeruns by visiting team" = "v_homeruns",
+         "No. of strikeouts by home team" = "h_strikeouts",
+         "No. of strikeouts by visiting team" = "v_strikeouts",
+         "No. of at bats by home team" = "h_at_bats",
+         "No. of at bats by visiting team" = "v_at_bats",
+         "Game length (in minutes)" = "length_minutes",
+         "Attendance" = "attendance") %>%
+  clean_names()
+
+
+mlb_data_final <- remove_outliers(mlb_data_final, names(mlb_data_final), lims = c(.25, .75))
+
+
+write.csv(mlb_data_final, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/mlb_data_cleaned.csv", row.names = FALSE)
+
+
+
+# mlb_y_choices <- c("Home Team Score" = "h_score",
+#                    "Visiting Team Score" = "v_score",
+#                    "Score Difference" = "score_diff")
+# mlb_x_choices <- c("No. of hits by home team" = "h_hits",
+#                    "No. of hits by visiting team" = "v_hits",
+#                    "No. of homeruns by home team" = "h_homeruns",
+#                    "No. of homeruns by visiting team" = "v_homeruns",
+#                    "No. of strikeouts by home team" = "h_strikeouts",
+#                    "No. of strikeouts by visiting team" = "v_strikeouts",
+#                    "No. of at bats by home team" = "h_at_bats",
+#                    "No. of at bats by visiting team" = "v_at_bats",
+#                    "Game length (in minutes)" = "length_minutes",
+#                    "Attendance" = "attendance")
+```
+
+```{r CRICKET ODI DATA}
+odi_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/cricket_odi_data.csv")
+
+batting_vars_y <- c("No. of runs scored" = "Innings.Runs.Scored", 
+                    "Minutes Batted" = "Innings.Minutes.Batted",
+                    "No. of boundaries (fours)" = "Innings.Boundary.Fours",
+                    "No. of boundaries (sixes)" = "Innings.Boundary.Sixes")
+
+batting_vars_x <- c("Minutes Batted" = "Innings.Minutes.Batted",
+                    "No.of Balls Faced" = "Innings.Balls.Faced", 
+                    "No. of boundaries (fours)" = "Innings.Boundary.Fours", 
+                    "No. of boundaries (sixes)" = "Innings.Boundary.Sixes", 
+                    "Average Strike Rate" = "Innings.Batting.Strike.Rate")
+
+odi_data[odi_data == "-"|odi_data == ""] <- NA
+
+
+batting_Vars <- c("Innings.Player", "Innings.Runs.Scored", "Innings.Minutes.Batted", "Innings.Balls.Faced", "Innings.Boundary.Fours", "Innings.Boundary.Sixes", "Innings.Batting.Strike.Rate")
+
+bowling_vars <- c("Innings.Player", "Innings.Overs.Bowled", "Innings.Maidens.Bowled", "Innings.Runs.Conceded", "Innings.Wickets.Taken", "Innings.Economy.Rate")
+
+cric_bat_data <- odi_data %>% dplyr::select(all_of(batting_Vars)) %>%
+  filter(!is.na(as.numeric(Innings.Runs.Scored)))
+
+cric_bat_data <- na.omit(cric_bat_data)
+cric_bat_data <- cric_bat_data[,-1]
+cric_bat_data <- mutate_all(cric_bat_data, function(x) as.numeric(as.character(x)))
+
+# ADDING NOISE
+cric_bat_data[names(cric_bat_data)] <- lapply(cric_bat_data[names(cric_bat_data)], jitter, factor = 3)
+
+cric_data_cleaned <- cric_bat_data %>%
+  rename("No. of runs scored" = "Innings.Runs.Scored", 
+         "Minutes Batted" = "Innings.Minutes.Batted",
+         "No. of boundaries (fours)" = "Innings.Boundary.Fours",
+         "No. of boundaries (sixes)" = "Innings.Boundary.Sixes",
+         "Minutes Batted" = "Innings.Minutes.Batted",
+         "No.of Balls Faced" = "Innings.Balls.Faced", 
+         "Average Strike Rate" = "Innings.Batting.Strike.Rate") %>%
+  clean_names()
+
+cric_data_cleaned <- remove_outliers(cric_data_cleaned, names(cric_data_cleaned), lims = c(.25, .75))
+
+
+
+write.csv(cric_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv", row.names = FALSE)
+
+```
+
+```{r NBA DATA}
+
+nba_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/NBA_Player_Stats.csv")
+
+nba_data <- na.omit(nba_data)
+
+nba_vars <- c("Age", "G", "GS", "MP", "FG.", 
+              "X3P.", "X2P.","eFG.", "FT.", "TRB", 
+              "AST", "STL", "BLK", "TOV", "PTS")
+
+
+nba_data_cleaned <- nba_data %>%
+  select(all_of(nba_vars)) %>%
+  rename("Average Points per Game" = "PTS",
+         "Age" = "Age", 
+         "Average no. of minutes player per game" = "MP", 
+         "Games Played" = "G",
+         "Games Started" = "GS",
+         "Percentage of field goals made" = "FG.",
+         "Percentage of 3 pointers made" = "X3P.",
+         "Percentage of 2 Pointers made" = "X2P.",
+         "Effective field goals made" = "eFG.",
+         "Percentage of free throws made" = "FT.",
+         "Average rebounds per game" = "TRB",
+         "Average assists per game" = "AST",
+         "Average steals per game" = "STL",
+         "Average blocks per game" = "BLK",
+         "Average turnovers per game" = "TOV") %>%
+  clean_names()
+  
+
+
+# ADDING NOISE
+nba_data_cleaned[names(nba_data_cleaned)] <- lapply(nba_data_cleaned[names(nba_data_cleaned)], jitter, factor = 3)
+
+
+write.csv(nba_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/nba_data_cleaned.csv", row.names = FALSE)
+
+
+# nba_y_vars <- c("Average Points per Game" = "PTS", 
+#                 "Averge No. of minutes played per game" = "MP", 
+#                 "Games Played" = "G", 
+#                 "Games Started" = "GS")
+# 
+# nba_x_vars <- c("Age" = "Age", 
+#                 "Average no. of minutes player per game" = "MP", 
+#                 "Games Played" = "G",
+#                 "Games Started" = "GS",
+#                 "Percentage of field goals made" = "FG.",
+#                 "Percentage of 3 pointers made (%3PM)" = "X3P.",
+#                 "Percentage of 2 Pointers made (%2PM)" = "X2P.",
+#                 "%3PM/%2PM" = "eFG.",
+#                 "Percentage of free throws made" = "FT.",
+#                 "Average rebounds per game" = "TRB",
+#                 "Average assists per game" = "AST",
+#                 "Average steals per game" = "STL",
+#                 "Average blocks per game" = "BLK",
+#                 "Average turnovers per game" = "TOV")
+
+```
