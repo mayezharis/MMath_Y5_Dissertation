@@ -84,17 +84,21 @@ ui <-
                                         value = 250),
                             
                             actionButton("resample", "Generate new sample"),
-                            actionButton("refresh", "Clear inputs")
+                            actionButton("refresh", "Clear all outputs")
                ),
-               mainPanel(withSpinner(fluidRow(
+               mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineOriginal")),
-                             plotOutput("fittedLineHoriginal")))
+                             plotOutput("fittedLineHoriginal")),
+                 br(),
+                 textOutput("NumSamples")
                )
                )
              )
     ),
     tabPanel(title = "Residuals vs. Fitted",
+             useShinyjs(),
+             extendShinyjs(text = jscode, functions = "refresh_page"),
              fluid = TRUE,
              sidebarLayout(
                sidebarPanel(radioButtons(inputId = "plot_options_rvf",
@@ -102,7 +106,8 @@ ui <-
                                          choices = c("Show red line" = "wRL",
                                                      "Show confidence interval" = "wCI",
                                                      "Show data only" = "woRL")), # radio buttons to change options for red line
-                            actionButton("resample_rvf", "Generate new sample")),  # regenerate a new random sample of the data)
+                            actionButton("resample_rvf", "Generate new sample"),
+                            actionButton("refresh_rvf", "Clear all outputs")),  # regenerate a new random sample of the data)
                
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
@@ -111,10 +116,16 @@ ui <-
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineHrvf"),
-                             plotOutput("rvf_history_plot"))))
+                             plotOutput("rvf_history_plot")),
+                 br(),
+                 textOutput("NumSamplesRVF")
+               ))
              )
     ),
-    tabPanel(title = "Scale Location", fluid = TRUE,
+    tabPanel(title = "Scale Location",
+             useShinyjs(),
+             extendShinyjs(text = jscode, functions = "refresh_page"),
+             fluid = TRUE,
              sidebarLayout(
                sidebarPanel(radioButtons(inputId = "plot_options_sl",
                                          label = h4("Plot Options:"),
@@ -122,7 +133,8 @@ ui <-
                                                      "Show confidence interval" = "wCI",
                                                      "Show data only" = "woRL")), # radio buttons to change options for red line
                             
-                            actionButton("resample_sl", "Generate new sample")),
+                            actionButton("resample_sl", "Generate new sample"),
+                            actionButton("refresh_sl", "Clear all outputs")),
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineSL")),
@@ -130,14 +142,20 @@ ui <-
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineHsl"),
-                             plotOutput("sl_history_plot"))
+                             plotOutput("sl_history_plot")),
+                 br(),
+                 textOutput("NumSamplesSL")
                )
                )
              )
     ),
-    tabPanel(title = "Normal Q-Q", fluid = TRUE,
+    tabPanel(title = "Normal Q-Q",
+             useShinyjs(),
+             extendShinyjs(text = jscode, functions = "refresh_page"),
+             fluid = TRUE,
              sidebarLayout(
-               sidebarPanel(actionButton("resample_qq", "Generate new sample")),
+               sidebarPanel(actionButton("resample_qq", "Generate new sample"),
+                            actionButton("refresh_qq", "Clear all outputs")),
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineQQ")),
@@ -145,7 +163,9 @@ ui <-
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineHqq"),
-                             plotOutput("qq_history_plot"))))
+                             plotOutput("qq_history_plot")),
+                 br(),
+                 textOutput("NumSamplesQQ")))
              )
     )
   )
@@ -175,6 +195,18 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$refresh, {
+    js$refresh_page();
+  })
+  
+  observeEvent(input$refresh_rvf, {
+    js$refresh_page();
+  })
+
+  observeEvent(input$refresh_sl, {
+    js$refresh_page();
+  })
+
+  observeEvent(input$refresh_qq, {
     js$refresh_page();
   })
 
@@ -527,6 +559,17 @@ server <- function(input, output, session) {
   ######################################################################
   ######################################################################
   ######################################################################
+  
+  
+  ########################## COUNT OF SAMPLES ##########################
+  output$NumSamples <- 
+    output$NumSamplesRVF <- 
+    output$NumSamplesSL <-
+    output$NumSamplesQQ <- renderText({
+      paste("No. of samples: ", resample$counter)
+    })
+  ######################################################################
+  
 }
 
 # Run the application 
