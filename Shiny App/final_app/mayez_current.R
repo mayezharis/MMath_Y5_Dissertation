@@ -55,11 +55,15 @@ library(latex2exp)
 library(broom)
 
 
+jscode <- "shinyjs.refresh_page = function() { history.go(0); }" # function to refresh app
+
 
 ui <-
   navbarPage(
     title = "Model Diagnostics",
     tabPanel(title = "Select Data",
+             useShinyjs(),
+             extendShinyjs(text = jscode, functions = "refresh_page"),
              sidebarLayout(
                sidebarPanel(selectInput(inputId = "DataSet",
                                         label = "Choose dataset:",
@@ -78,7 +82,9 @@ ui <-
                                         min = 50,
                                         max = 500,
                                         value = 250),
-                            actionButton("resample", "Generate new sample")
+                            
+                            actionButton("resample", "Generate new sample"),
+                            actionButton("refresh", "Clear inputs")
                ),
                mainPanel(withSpinner(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
@@ -88,15 +94,16 @@ ui <-
                )
              )
     ),
-    tabPanel(title = "Residuals vs. Fitted", fluid = TRUE,
+    tabPanel(title = "Residuals vs. Fitted",
+             fluid = TRUE,
              sidebarLayout(
                sidebarPanel(radioButtons(inputId = "plot_options_rvf",
                                          label = h4("Plot Options:"),
                                          choices = c("Show red line" = "wRL",
                                                      "Show confidence interval" = "wCI",
                                                      "Show data only" = "woRL")), # radio buttons to change options for red line
-                            
-                            actionButton("resampleRVF", "Generate new sample")),  # regenerate a new random sample of the data),  # slider to decide sample size),
+                            actionButton("resample_rvf", "Generate new sample")),  # regenerate a new random sample of the data)
+               
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineRVF")),
@@ -115,7 +122,7 @@ ui <-
                                                      "Show confidence interval" = "wCI",
                                                      "Show data only" = "woRL")), # radio buttons to change options for red line
                             
-                            actionButton("resampleSL", "Generate new sample")),
+                            actionButton("resample_sl", "Generate new sample")),
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineSL")),
@@ -130,7 +137,7 @@ ui <-
     ),
     tabPanel(title = "Normal Q-Q", fluid = TRUE,
              sidebarLayout(
-               sidebarPanel(actionButton("resampleQQ", "Generate new sample")),
+               sidebarPanel(actionButton("resample_qq", "Generate new sample")),
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineQQ")),
@@ -166,10 +173,31 @@ server <- function(input, output, session) {
     }
     return(dataset)
   })
+  
+  observeEvent(input$refresh, {
+    js$refresh_page();
+  })
+
 
   sample_size <- reactive({
     as.numeric(input$sample_size)
     })
+  
+  
+  resample <- reactiveValues(counter = 0)
+  
+  observeEvent(input$resample, {
+    resample$counter <- resample$counter + 1
+  })
+  observeEvent(input$resample_rvf, {
+    resample$counter <- resample$counter + 1
+  })
+  observeEvent(input$resample_sl, {
+    resample$counter <- resample$counter + 1
+  })
+  observeEvent(input$resample_qq, {
+    resample$counter <- resample$counter + 1
+  })
     
     
     
@@ -194,11 +222,11 @@ server <- function(input, output, session) {
   
   # Define the data sample with the inputted sample size
   reg_data <- reactive({
-    if (input$resample >= 0) {
+    if (resample$counter >= 0) {
       # req(input$y_var, input$x_var %in% colnames(data))
       data_sample <- sample_n(data(), sample_size())
       return(data_sample[, c(input$x_var, input$y_var)])
-    }
+   }
   })
 
   # fit a linear model on sample
@@ -238,20 +266,21 @@ server <- function(input, output, session) {
       stat_smooth(method = "loess", se = FALSE, n = sample_size())
   }
   
-  observeEvent(input$resample, {
-    
-    rvf_new_line <- ggplot_build(rvf_current(obsData()))$data[[2]][, c("x", "y")]
-    
-    rvf_new_line$group <- nrow(rvf_history_data$history) / sample_size() + 1
-    
-    rvf_history_data$history <- rbind(rvf_history_data$history, rvf_new_line)
-    
-    output$rvf_history_plot <- renderPlot({
-      rvf_empty() + 
-        geom_line(data = rvf_history_data$history, 
-                  aes(x = x, y = y, group = group), 
-                  col = "indianred1", linewidth = 0.5)
-    })
+  observeEvent(resample$counter, {
+    if (resample$counter > 0) {
+      rvf_new_line <- ggplot_build(rvf_current(obsData()))$data[[2]][, c("x", "y")]
+      
+      rvf_new_line$group <- nrow(rvf_history_data$history) / sample_size() + 1
+      
+      rvf_history_data$history <- rbind(rvf_history_data$history, rvf_new_line)
+      
+      output$rvf_history_plot <- renderPlot({
+        rvf_empty() + 
+          geom_line(data = rvf_history_data$history, 
+                    aes(x = x, y = y, group = group), 
+                    col = "indianred1", linewidth = 0.5)
+      })
+    }
   })
   
   ######################################################################
@@ -283,21 +312,22 @@ server <- function(input, output, session) {
       stat_smooth(method = "loess", se = FALSE, n = sample_size())
   }
   
-  observeEvent(input$resample, {
-    
-    sl_new_line <- ggplot_build(sl_current(obsData()))$data[[2]][, c("x", "y")]
-    
-    sl_new_line$group <- nrow(sl_history_data$history) / sample_size() + 1
-    
-    sl_history_data$history <- rbind(sl_history_data$history, sl_new_line)
-    
-    
-    output$sl_history_plot <- renderPlot({
-      sl_empty() + 
-        geom_line(data = sl_history_data$history, 
-                  aes(x = x, y = y, group = group), 
-                  col = "indianred1", linewidth = 0.5)
-    })
+  observeEvent(resample$counter, {
+    if (resample$counter > 0) {
+      sl_new_line <- ggplot_build(sl_current(obsData()))$data[[2]][, c("x", "y")]
+      
+      sl_new_line$group <- nrow(sl_history_data$history) / sample_size() + 1
+      
+      sl_history_data$history <- rbind(sl_history_data$history, sl_new_line)
+      
+      
+      output$sl_history_plot <- renderPlot({
+        sl_empty() + 
+          geom_line(data = sl_history_data$history, 
+                    aes(x = x, y = y, group = group), 
+                    col = "indianred1", linewidth = 0.5)
+      })
+    }
   })
   
   ######################################################################
@@ -330,22 +360,24 @@ server <- function(input, output, session) {
       stat_qq(geom = "path")
   }
   
-  observeEvent(input$resample, {
-    
-    qq_new_line <- ggplot_build(qq_current(obsData()))$data[[2]][, c("x", "y")]
-    
-    qq_new_line$group <- nrow(qq_history_data$history) / sample_size() + 1
-    
-    qq_history_data$history <- rbind(qq_history_data$history, qq_new_line)
-    
-    
-    output$qq_history_plot <- renderPlot({
-      qq_empty() +
-        geom_line(data = qq_history_data$history,
-                  aes(x = x, y = y, group = group),
-                  col = "slateblue2", linewidth = 0.5,
-                  inherit.aes = FALSE)
-    })
+  observeEvent(resample$counter, {
+    if (resample$counter > 0) {
+      
+      qq_new_line <- ggplot_build(qq_current(obsData()))$data[[2]][, c("x", "y")]
+      
+      qq_new_line$group <- nrow(qq_history_data$history) / sample_size() + 1
+      
+      qq_history_data$history <- rbind(qq_history_data$history, qq_new_line)
+      
+      
+      output$qq_history_plot <- renderPlot({
+        qq_empty() +
+          geom_line(data = qq_history_data$history,
+                    aes(x = x, y = y, group = group),
+                    col = "slateblue2", linewidth = 0.5,
+                    inherit.aes = FALSE)
+      })
+    }
   })
   
   ######################################################################
@@ -368,26 +400,28 @@ server <- function(input, output, session) {
   history_data <- reactiveValues(history = data.frame(intercept = numeric(), slope = numeric()))
   
   # history plots
-  observeEvent(input$resample, {
-    new_row <- data.frame(
-      intercept = coef(mod())[1],
-      slope = coef(mod())[2]
-    )
-    history_data$history <- rbind(history_data$history, new_row)
-    
-    # Update the plot
-    output$fittedLineHoriginal <- 
-      output$fittedLineHrvf <-
-      output$fittedLineHsl <- 
-      output$fittedLineHqq <- renderPlot({
-        ggplot(data = data(), mapping = aes_string(x = input$x_var, y = input$y_var)) +
-          geom_point(alpha = 0) +
-          geom_abline(data = history_data$history,
-                      aes(intercept = intercept, slope = slope),
-                      col = "cornflowerblue") +
-          labs(title = "History of Linear Fits")
-      })
-  })
+  observeEvent(resample$counter, {
+    if (resample$counter > 0) {
+      new_row <- data.frame(
+        intercept = coef(mod())[1],
+        slope = coef(mod())[2]
+      )
+      history_data$history <- rbind(history_data$history, new_row)
+      
+      # Update the plot
+      output$fittedLineHoriginal <- 
+        output$fittedLineHrvf <-
+        output$fittedLineHsl <- 
+        output$fittedLineHqq <- renderPlot({
+          ggplot(data = data(), mapping = aes_string(x = input$x_var, y = input$y_var)) +
+            geom_point(alpha = 0) +
+            geom_abline(data = history_data$history,
+                        aes(intercept = intercept, slope = slope),
+                        col = "cornflowerblue") +
+            labs(title = "History of Linear Fits")
+        })
+      }
+    })
 
   ######################################################################
   ######################################################################

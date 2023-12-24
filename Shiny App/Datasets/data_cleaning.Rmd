@@ -41,7 +41,7 @@ remove_outliers <- function(df, cols = names(df), lims) {
 
 
 ```{r ENERGY CONSUMPTION DATA}
-e_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/energydata_complete.csv")
+e_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/Final Datasets/energydata_complete.csv")
 e_data$date <- strptime(e_data$date, format="%Y-%m-%d %H:%M:%S")
 e_data <- na.omit(e_data)
 
@@ -91,7 +91,7 @@ e_data <- e_data %>%
 
 
 
-write.csv(e_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/energy_data_cleaned.csv", row.names=FALSE)
+write.csv(e_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/energy_data_cleaned.csv", row.names=FALSE)
 
 
 
@@ -99,7 +99,7 @@ write.csv(e_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Diss
 
 
 ```{r NEWS DATA}
-news_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/OnlineNewsPopularity.csv")
+news_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/Final Datasets/OnlineNewsPopularity.csv")
 
 list_of_vars_n <- c("shares", "n_tokens_title", "n_tokens_content", "n_unique_tokens", "num_hrefs", "num_imgs", "num_videos", "average_token_length")
 
@@ -119,12 +119,12 @@ news_data_cleaned <- news_data %>%
                     "Average word length" = "average_token_length") %>%
   clean_names()
 
-write.csv(news_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/news_data_cleaned.csv", row.names=FALSE)
+write.csv(news_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/news_data_cleaned.csv", row.names=FALSE)
 
 ```
 
 ```{r MLB DATA}
-mlb_data <- read.csv(unz("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/game_logs.zip", "game_logs.csv"))
+mlb_data <- read.csv(unz("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/Final Datasets/game_logs.zip", "game_logs.csv"))
 
 mlb_vars <- c("attendance", "length_minutes",
               "v_score", "v_at_bats", "v_hits", "v_homeruns", "v_walks", "v_strikeouts", "v_stolen_bases", "v_errors",
@@ -170,7 +170,7 @@ mlb_data_final <- mlb_data_cleaned %>%
 mlb_data_final <- remove_outliers(mlb_data_final, names(mlb_data_final), lims = c(.25, .75))
 
 
-write.csv(mlb_data_final, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/mlb_data_cleaned.csv", row.names = FALSE)
+write.csv(mlb_data_final, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/mlb_data_cleaned.csv", row.names = FALSE)
 
 
 
@@ -190,7 +190,7 @@ write.csv(mlb_data_final, "C:/Users/mayez/OneDrive - University of Edinburgh/Yea
 ```
 
 ```{r CRICKET ODI DATA}
-odi_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/cricket_odi_data.csv")
+odi_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/Final Datasets/cricket_odi_data.csv")
 
 batting_vars_y <- c("No. of runs scored" = "Innings.Runs.Scored", 
                     "Minutes Batted" = "Innings.Minutes.Batted",
@@ -234,13 +234,13 @@ cric_data_cleaned <- remove_outliers(cric_data_cleaned, names(cric_data_cleaned)
 
 
 
-write.csv(cric_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv", row.names = FALSE)
+write.csv(cric_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv", row.names = FALSE)
 
 ```
 
 ```{r NBA DATA}
 
-nba_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/Final Datasets/NBA_Player_Stats.csv")
+nba_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/Final Datasets/NBA_Player_Stats.csv")
 
 nba_data <- na.omit(nba_data)
 
@@ -273,8 +273,7 @@ nba_data_cleaned <- nba_data %>%
 # ADDING NOISE
 nba_data_cleaned[names(nba_data_cleaned)] <- lapply(nba_data_cleaned[names(nba_data_cleaned)], jitter, factor = 3)
 
-
-write.csv(nba_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/mmath_dissertation/Shiny App/Datasets/final_cleaned_datasets/nba_data_cleaned.csv", row.names = FALSE)
+write.csv(nba_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/nba_data_cleaned.csv", row.names = FALSE)
 
 
 # nba_y_vars <- c("Average Points per Game" = "PTS", 
