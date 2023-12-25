@@ -84,14 +84,17 @@ ui <-
                                         value = 250),
                             
                             actionButton("resample", "Generate new sample"),
-                            actionButton("refresh", "Clear all outputs")
+                            br(),
+                            br(),
+                            actionButton("refresh", "Clear all outputs"),
+                            br(),
+                            br(),
+                            textOutput("NumSamples")
                ),
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineOriginal")),
-                             plotOutput("fittedLineHoriginal")),
-                 br(),
-                 textOutput("NumSamples")
+                             plotOutput("fittedLineHoriginal"))
                )
                )
              )
@@ -107,8 +110,13 @@ ui <-
                                                      "Show confidence interval" = "wCI",
                                                      "Show data only" = "woRL")), # radio buttons to change options for red line
                             actionButton("resample_rvf", "Generate new sample"),
-                            actionButton("refresh_rvf", "Clear all outputs")),  # regenerate a new random sample of the data)
-               
+                            br(),
+                            br(),
+                            actionButton("refresh_rvf", "Clear all outputs"),  # regenerate a new random sample of the data)
+                            br(),
+                            br(),
+                            textOutput("NumSamplesRVF")
+               ),
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineRVF")),
@@ -116,9 +124,7 @@ ui <-
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineHrvf"),
-                             plotOutput("rvf_history_plot")),
-                 br(),
-                 textOutput("NumSamplesRVF")
+                             plotOutput("rvf_history_plot"))
                ))
              )
     ),
@@ -134,7 +140,12 @@ ui <-
                                                      "Show data only" = "woRL")), # radio buttons to change options for red line
                             
                             actionButton("resample_sl", "Generate new sample"),
-                            actionButton("refresh_sl", "Clear all outputs")),
+                            br(),
+                            br(),
+                            actionButton("refresh_sl", "Clear all outputs"),
+                            br(),
+                            br(),
+                            textOutput("NumSamplesSL")),
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineSL")),
@@ -142,9 +153,7 @@ ui <-
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineHsl"),
-                             plotOutput("sl_history_plot")),
-                 br(),
-                 textOutput("NumSamplesSL")
+                             plotOutput("sl_history_plot"))
                )
                )
              )
@@ -155,7 +164,12 @@ ui <-
              fluid = TRUE,
              sidebarLayout(
                sidebarPanel(actionButton("resample_qq", "Generate new sample"),
-                            actionButton("refresh_qq", "Clear all outputs")),
+                            br(),
+                            br(),
+                            actionButton("refresh_qq", "Clear all outputs"),
+                            br(),
+                            br(),
+                            textOutput("NumSamplesQQ")),
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              withSpinner(plotOutput("fittedLineQQ")),
@@ -163,9 +177,7 @@ ui <-
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineHqq"),
-                             plotOutput("qq_history_plot")),
-                 br(),
-                 textOutput("NumSamplesQQ")))
+                             plotOutput("qq_history_plot"))))
              )
     )
   )
@@ -254,7 +266,7 @@ server <- function(input, output, session) {
   
   # Define the data sample with the inputted sample size
   reg_data <- reactive({
-    if (resample$counter >= 0) {
+    if (resample$counter > 0) {
       # req(input$y_var, input$x_var %in% colnames(data))
       data_sample <- sample_n(data(), sample_size())
       return(data_sample[, c(input$x_var, input$y_var)])
@@ -302,15 +314,23 @@ server <- function(input, output, session) {
     if (resample$counter > 0) {
       rvf_new_line <- ggplot_build(rvf_current(obsData()))$data[[2]][, c("x", "y")]
       
+      
       rvf_new_line$group <- nrow(rvf_history_data$history) / sample_size() + 1
       
-      rvf_history_data$history <- rbind(rvf_history_data$history, rvf_new_line)
+      rvf_new_line$is_recent <- "TRUE"
       
+      if (nrow(rvf_history_data$history) > 0) {
+        rvf_history_data$history$is_recent <- "FALSE"
+      }
+      
+      rvf_history_data$history <- rbind(rvf_history_data$history, rvf_new_line)
+    
       output$rvf_history_plot <- renderPlot({
-        rvf_empty() + 
-          geom_line(data = rvf_history_data$history, 
-                    aes(x = x, y = y, group = group), 
-                    col = "indianred1", linewidth = 0.5)
+        rvf_empty() +
+          geom_line(data = rvf_history_data$history,
+                    aes(x = x, y = y, group = group, color = is_recent),
+                    linewidth = 0.5, show.legend = FALSE) +
+          scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
       })
     }
   })
@@ -350,14 +370,23 @@ server <- function(input, output, session) {
       
       sl_new_line$group <- nrow(sl_history_data$history) / sample_size() + 1
       
+      sl_new_line$is_recent <- "TRUE"
+      
+      if (nrow(sl_history_data$history) > 0) {
+        sl_history_data$history$is_recent <- "FALSE"
+      }
+      
+      
       sl_history_data$history <- rbind(sl_history_data$history, sl_new_line)
       
       
       output$sl_history_plot <- renderPlot({
         sl_empty() + 
           geom_line(data = sl_history_data$history, 
-                    aes(x = x, y = y, group = group), 
-                    col = "indianred1", linewidth = 0.5)
+                    aes(x = x, y = y, group = group, color = is_recent), 
+                    linewidth = 0.5, show.legend = FALSE) +
+          scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
+        
       })
     }
   })
@@ -380,7 +409,7 @@ server <- function(input, output, session) {
   
   qq_empty <- function() {
     aug_data_full() %>% ggplot(aes(sample = .std.resid)) +
-      stat_qq_line() +
+      stat_qq_line(linetype = 2) +
       labs(title = "History of Normal Q-Q Plot", 
            x = "N(0, 1) quantiles", 
            y = "Standardized residuals")
@@ -399,15 +428,22 @@ server <- function(input, output, session) {
       
       qq_new_line$group <- nrow(qq_history_data$history) / sample_size() + 1
       
+      qq_new_line$is_recent <- "TRUE"
+      
+      if (nrow(qq_history_data$history) > 0) {
+        qq_history_data$history$is_recent <- "FALSE"
+      }
+      
+      
       qq_history_data$history <- rbind(qq_history_data$history, qq_new_line)
       
       
       output$qq_history_plot <- renderPlot({
         qq_empty() +
           geom_line(data = qq_history_data$history,
-                    aes(x = x, y = y, group = group),
-                    col = "slateblue2", linewidth = 0.5,
-                    inherit.aes = FALSE)
+                    aes(x = x, y = y, group = group, color = is_recent),
+                    linewidth = 0.5, inherit.aes = FALSE, show.legend = FALSE) +
+          scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
       })
     }
   })
@@ -436,9 +472,21 @@ server <- function(input, output, session) {
     if (resample$counter > 0) {
       new_row <- data.frame(
         intercept = coef(mod())[1],
-        slope = coef(mod())[2]
+        slope = coef(mod())[2],
+        is_recent = "TRUE"
       )
+      
+      if (input$x_var == input$y_var) {
+        new_row$intercept <- 0
+        new_row$slope <- 1
+      }
+      
+      if (nrow(history_data$history) > 0) {
+        history_data$history$is_recent <- "FALSE"
+      }
+      
       history_data$history <- rbind(history_data$history, new_row)
+
       
       # Update the plot
       output$fittedLineHoriginal <- 
@@ -448,8 +496,9 @@ server <- function(input, output, session) {
           ggplot(data = data(), mapping = aes_string(x = input$x_var, y = input$y_var)) +
             geom_point(alpha = 0) +
             geom_abline(data = history_data$history,
-                        aes(intercept = intercept, slope = slope),
-                        col = "cornflowerblue") +
+                        aes(intercept = intercept, slope = slope, color = is_recent),
+                        linewidth = 0.5, show.legend = FALSE) +
+            scale_color_manual(values = c("FALSE" = "indianred1", "TRUE" = "blue")) +
             labs(title = "History of Linear Fits")
         })
       }
@@ -476,10 +525,7 @@ server <- function(input, output, session) {
         ggplot(aes_string(x = input$x_var, y = input$y_var)) +
         geom_point(shape = 1) +
         labs(title = "Data Fit") +
-        # stat_smooth(method = "lm", se = FALSE, col="blue")
-        geom_abline(intercept = coef(mod())[1],
-                    slope = coef(mod())[2],
-                    col = "blue", linewidth = 0.5)
+        stat_smooth(method = "lm", se = FALSE, col="blue", linewidth = 0.5)
     })
 
   ######################################################################
@@ -566,7 +612,9 @@ server <- function(input, output, session) {
     output$NumSamplesRVF <- 
     output$NumSamplesSL <-
     output$NumSamplesQQ <- renderText({
-      paste("No. of samples: ", resample$counter)
+      if(resample$counter > 0) {
+        paste("No. of new samples: ", resample$counter)
+      }
     })
   ######################################################################
   
