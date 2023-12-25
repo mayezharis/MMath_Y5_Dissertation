@@ -206,23 +206,25 @@ server <- function(input, output, session) {
     return(dataset)
   })
   
-  observeEvent(input$refresh, {
-    js$refresh_page();
-  })
+
+  ######################################################################
+  #######################  REFRESHING THE APP  #########################
+  ######################################################################
+  ######################################################################
   
-  observeEvent(input$refresh_rvf, {
-    js$refresh_page();
-  })
+  observeEvent(input$refresh, {js$refresh_page();})
+  
+  observeEvent(input$refresh_rvf, {js$refresh_page();})
 
-  observeEvent(input$refresh_sl, {
-    js$refresh_page();
-  })
+  observeEvent(input$refresh_sl, {js$refresh_page();})
 
-  observeEvent(input$refresh_qq, {
-    js$refresh_page();
-  })
+  observeEvent(input$refresh_qq, {js$refresh_page();})
 
+  ######################################################################
+  ######################################################################
+  ######################################################################
 
+  
   sample_size <- reactive({
     as.numeric(input$sample_size)
     })
