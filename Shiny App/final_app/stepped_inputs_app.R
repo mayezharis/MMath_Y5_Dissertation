@@ -69,13 +69,13 @@ ui <-
                                         label = "Dataset:",
                                         choices = c("Select a dataset" = "" ,dataset_choices)),
                             
-                            selectInput(inputId = "x_var",
-                                        label = "X Variable:",
-                                        choices = c("Please select a dataset first" = "")),  # drop-down for x-variable
-                            
                             selectInput(inputId = "y_var",
                                         label = "Y Variable:",
                                         choices = c("Please select a dataset first" = "")),  # drop-down for y variable
+                            
+                            selectInput(inputId = "x_var",
+                                        label = "X Variable:",
+                                        choices = c("Please select a dataset first" = "")),  # drop-down for x-variable
                             
                             selectInput(inputId = "sample_size",
                                         label = "Sample size:",
@@ -207,55 +207,49 @@ server <- function(input, output, session) {
     colnames(data())
   })
   
-  # output$choose_x <- renderUI({
-  #   req(data())
-  #   selectInput(inputId = "x_var",
-  #               label = "X Variable:",
-  #               choices = c("Select" = "", var_names()))
-  # })
-  # 
-  # output$choose_y <- renderUI({
-  #   req(data())
-  #   selectInput(inputId = "y_var",
-  #               label = "Y Variable:",
-  #               choices = c("Select" = "", var_names()))
-  # })
-  
   
   
   observeEvent(data(), {
-    updateSelectInput(inputId = "x_var",
-                      label = "X Variable:",
+    updateSelectInput(inputId = "y_var",
+                      label = "Y Variable:",
                       choices = c("Select variable" = "", names(data())
                                   ))
   })
   
   observeEvent(data(), {
-    updateSelectInput(inputId = "y_var",
-                      label = "Y Variable:",
-                      choices = c("Select an x-variable please" = ""))
+    updateSelectInput(inputId = "x_var",
+                      label = "X Variable:",
+                      choices = c("Select a y-variable please" = ""))
     })
-  
-  observeEvent(input$x_var, {
-    req(input$x_var != "")
-    updateSelectInput(inputId = "y_var",
-                      label = "Y Variable:",
-                      choices = c("Select variable" = "", setdiff(names(data()), input$x_var)))
-  })
   
   observeEvent(input$y_var, {
     req(input$y_var != "")
+    updateSelectInput(inputId = "x_var",
+                      label = "X Variable:",
+                      choices = c("Select variable" = "", setdiff(names(data()), input$y_var)))
+  })
+  
+  observeEvent(input$x_var, {
+    req(input$x_var != "")
     updateSelectInput(inputId = "sample_size",
                       label = "Sample size:",
                       choices = c("Select a sample size" = "", 50, 100, 200, 300, 400, 500))
   })
-
-
   
+  observeEvent(input$x_var, {
+    if (input$x_var == ""){
+      updateSelectInput(inputId = "sample_size",
+                        label = "Sample size:",
+                        choices = c("Please select dataset and variables first" = ""))
+    }
+  })
+
+
   sample_size <- reactive({
     req(input$sample_size != "")
     as.numeric(input$sample_size)
     })
+  
   
   
   ######################################################################
@@ -279,7 +273,7 @@ server <- function(input, output, session) {
     actionButton("resample_qq", "Generate new sample")
   })
   
-  #--------------------------------------------------------------------#
+  #====================================================================#
   
   resample <- reactiveValues(counter = 0)
   
@@ -295,10 +289,25 @@ server <- function(input, output, session) {
   observeEvent(input$resample_qq, {
     resample$counter <- resample$counter + 1
   })
-  ######################################################################
-  ######################################################################
-  ######################################################################
   
+  #====================================================================#
+  
+  observeEvent(input$DataSet, {
+    resample$counter <- 0
+  })
+  observeEvent(input$x_var, {
+    resample$counter <- 0
+  })
+  observeEvent(input$y_var, {
+    resample$counter <- 0
+  })
+  observeEvent(input$sample_size, {
+    resample$counter <- 0
+  })
+  
+  ######################################################################
+  ######################################################################
+  ######################################################################
     
 
   
@@ -309,22 +318,22 @@ server <- function(input, output, session) {
   ######################################################################
   output$refresh  <- renderUI({
     req(resample$counter >0)
-    actionButton("refresh", "Clear all outputs")
+    actionButton("refresh", "Reset inputs")
   })
   output$refresh_rvf  <- renderUI({
     req(resample$counter >0)
-    actionButton("refresh_rvf", "Clear all outputs")
+    actionButton("refresh_rvf", "Reset inputs")
   })
   output$refresh_sl  <- renderUI({
     req(resample$counter >0)
-    actionButton("refresh_sl", "Clear all outputs")
+    actionButton("refresh_sl", "Reset inputs")
   })
   output$refresh_qq  <- renderUI({
     req(resample$counter >0)
-    actionButton("refresh_qq", "Clear all outputs")
+    actionButton("refresh_qq", "Reset inputs")
   })
   
-  #--------------------------------------------------------------------#
+  #====================================================================#
   
   observeEvent(input$refresh, {js$refresh_page();})
   
@@ -353,7 +362,6 @@ server <- function(input, output, session) {
   reg_data <- reactive({
     req(input$x_var, input$y_var, input$x_var %in% names(data()))
     if (resample$counter > 0) {
-      # req(input$y_var, input$x_var %in% colnames(data))
       data_sample <- sample_n(data(), sample_size())
       return(data_sample[, c(input$x_var, input$y_var)])
    }
@@ -372,23 +380,29 @@ server <- function(input, output, session) {
     return((x- min(x)) /(max(x)-min(x)))
   }
   
+  
   ######################################################################
   ######################################################################
   ########################  RVF PLOT HISTORY  ##########################
   ######################################################################
-  ######################################################################
+  
   rvf_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
   
+  observeEvent(resample$counter, {
+    if (resample$counter == 0) {
+      rvf_history_data$history <- data.frame(x = numeric(), y = numeric())
+    }
+  })
   
-  
-  rvf_empty <- function() {
+  rvf_empty <- reactive({
+    req(resample$counter > 0)
     ggplot(aug_data_full(), aes(x = .fitted, y = .resid)) +
       geom_point(alpha = 0) +
       geom_hline(yintercept = 0, linetype = 2, col = "black") +
       labs(title = "Residuals vs. Fitted History",
            x = "Fitted values",
            y = "Residuals")
-  }
+  })
   
   rvf_current <- function(data) {
     data %>% ggplot(aes(x = .fitted, y = .resid)) +
@@ -426,23 +440,29 @@ server <- function(input, output, session) {
   ######################################################################
   
   
+  
   ######################################################################
   ######################################################################
   ########################  SL PLOT HISTORY  ###########################
   ######################################################################
-  ######################################################################
   
   sl_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
   
+  observeEvent(resample$counter, {
+    if (resample$counter == 0) {
+      sl_history_data$history <- data.frame(x = numeric(), y = numeric())
+    }
+  })
   
-  sl_empty <- function() {
+  sl_empty <- reactive({
+    req(resample$counter > 0)
     ggplot(aug_data_full(), 
            aes(x = normalize(.fitted), y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
       geom_point(alpha = 0) +
       labs(title = "Scale-Location History",
            x = "Fitted values",
            y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
-  }
+  })
   
   sl_current <- function(data) {
     data %>% ggplot(aes(x = .fitted, y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
@@ -488,18 +508,23 @@ server <- function(input, output, session) {
   ######################################################################
   ########################  QQ PLOT HISTORY  ###########################
   ######################################################################
-  ######################################################################
   
   qq_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
   
+  observeEvent(resample$counter, {
+    if (resample$counter == 0) {
+      qq_history_data$history <- data.frame(x = numeric(), y = numeric())
+    }
+  })
   
-  qq_empty <- function() {
+  qq_empty <- reactive({
+    req(resample$counter > 0)
     aug_data_full() %>% ggplot(aes(sample = .std.resid)) +
       stat_qq_line(linetype = 2) +
       labs(title = "History of Normal Q-Q Plot", 
            x = "N(0, 1) quantiles", 
            y = "Standardized residuals")
-  }
+  })
   
   qq_current <- function(data) {
     data %>% ggplot(aes(sample = .std.resid)) +
@@ -539,9 +564,6 @@ server <- function(input, output, session) {
   ######################################################################
   
   
-  
-  
-  
 
     
   ######################################################################
@@ -553,6 +575,12 @@ server <- function(input, output, session) {
   # Create a reactiveValues for the history of linear fit
   history_data <- reactiveValues(history = data.frame(intercept = numeric(), slope = numeric()))
   
+  observeEvent(resample$counter, {
+    if (resample$counter == 0) {
+      history_data$history <- data.frame(intercept = numeric(), slope = numeric())
+    }
+  })
+  
   # history plots
   observeEvent(resample$counter, {
     if (resample$counter > 0) {
@@ -561,11 +589,6 @@ server <- function(input, output, session) {
         slope = coef(mod())[2],
         is_recent = "TRUE"
       )
-      
-      if (input$x_var == input$y_var) {
-        new_row$intercept <- 0
-        new_row$slope <- 1
-      }
       
       if (nrow(history_data$history) > 0) {
         history_data$history$is_recent <- "FALSE"
@@ -579,6 +602,7 @@ server <- function(input, output, session) {
         output$fittedLineHrvf <-
         output$fittedLineHsl <- 
         output$fittedLineHqq <- renderPlot({
+          req(resample$counter > 0)
           ggplot(data = data(), mapping = aes_string(x = input$x_var, y = input$y_var)) +
             geom_point(alpha = 0) +
             geom_abline(data = history_data$history,
@@ -595,13 +619,12 @@ server <- function(input, output, session) {
   ######################################################################
 
   
+  
 
   ######################################################################
   ######################################################################
   #####################  FIRST FITTED LINE  ############################
   ######################################################################
-  ######################################################################
-
 
   output$fittedLineOriginal <- 
     output$fittedLineRVF <-
@@ -623,12 +646,9 @@ server <- function(input, output, session) {
 
 
 
-
-
   ######################################################################
   ######################################################################
   ######################  DIAGNOSTIC PLOTS  ############################
-  ######################################################################
   ######################################################################
   
   output$rvfPlot1 <- renderPlot({
@@ -640,9 +660,7 @@ server <- function(input, output, session) {
                         stat_smooth(col="red", method = "loess", se=FALSE, linewidth = 0.5, n = sample_size()) +
                         labs(title = "Residuals vs. Fitted",
                              x = "Fitted values",
-                             y = "Residuals"), # +
-                        # coord_cartesian(xlim = c(min(obsData()$.fitted), max(obsData()$.fitted)),
-                        #                 ylim = c(min(obsData()$.resid), max(obsData()$.resid))),
+                             y = "Residuals"),
                       wCI = obsData() %>% ggplot(aes(x = .fitted, y = .resid)) +
                         geom_point(shape = 1) +
                         geom_hline(yintercept = 0, linetype = 2, color = "black") +
@@ -697,15 +715,22 @@ server <- function(input, output, session) {
   ######################################################################
   
   
+  
+  
+  ######################################################################
   ########################## COUNT OF SAMPLES ##########################
+  ######################################################################
+  
   output$NumSamples <- 
     output$NumSamplesRVF <- 
     output$NumSamplesSL <-
     output$NumSamplesQQ <- renderText({
       req(resample$counter > 0)
       req(input$sample_size != "")
-      paste("No. of new samples: ", resample$counter)
+      paste("No. of samples: ", resample$counter)
     })
+  
+  ######################################################################
   ######################################################################
   
 }
