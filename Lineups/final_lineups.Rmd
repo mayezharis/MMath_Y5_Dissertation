@@ -215,7 +215,7 @@ lineup_resids1_woL %>%
 suppressMessages(ggsave("FLU2_SL_woL(5).png", path = "Final Lineups/SL Lineups/Lineup 2"))
 ```
 
-```{r RvF Lineup 1 fig.height=7.5, fig.width=9 (LU11)}
+```{r SL Lineup 3 fig.height=7.5, fig.width=9 (LU11)}
 set.seed(57)
 house_samp2 <- hdata[sample(nrow(hdata), 250), ] %>%
   select(all_of(c("SalePrice", "LotArea", "YearBuilt", "TotalBsmtSF")))

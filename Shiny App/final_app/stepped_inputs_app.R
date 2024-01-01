@@ -10,6 +10,8 @@
 
 # Different datasets
 
+ToyData1 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_1.csv")
+
 # ENERGY DATA
 EnergyData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/energy_data_cleaned.csv")
 
@@ -28,16 +30,11 @@ CricketData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 
 # NBA PLAYER DATA
 BasketballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/nba_data_cleaned.csv")
 
-# datsets <- list(
-#   nba_data_cleaned    = read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/nba_data_cleaned.csv"),
-#   cric_bat_data       = read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv"),
-#   mlb_data_cleaned    = read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/mlb_data_cleaned.csv"),
-#   energy_data_cleaned = read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/energy_data_cleaned.csv"),
-#   news_data_cleaned   = read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/news_data_cleaned.csv")
-# )
 
 
-dataset_choices <- c("NBA Player Data" = "nba_data_cleaned",
+
+dataset_choices <- c("Toy Dataset 1 (quadratic with noise)" = "toy_data_1",
+                     "NBA Player Data" = "nba_data_cleaned",
                      "Cricket Batting Data" = "cric_bat_data",
                      "MLB Game Data" = "mlb_data_cleaned",
                      "Energy Consumption Data" = "energy_data_cleaned",
@@ -183,8 +180,10 @@ server <- function(input, output, session) {
 
   data <- reactive({
     validate(need(input$DataSet != "", "Please select a data set."))
-    
-    if (input$DataSet == "nba_data_cleaned"){
+    if (input$DataSet == "toy_data_1") {
+      dataset <- ToyData1
+    }
+    else if (input$DataSet == "nba_data_cleaned"){
       dataset <- BasketballData
     }
     else if (input$DataSet == "cric_bat_data"){
@@ -457,7 +456,7 @@ server <- function(input, output, session) {
   sl_empty <- reactive({
     req(resample$counter > 0)
     ggplot(aug_data_full(), 
-           aes(x = normalize(.fitted), y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
+           aes(x = .fitted, y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
       geom_point(alpha = 0) +
       labs(title = "Scale-Location History",
            x = "Fitted values",
@@ -608,7 +607,7 @@ server <- function(input, output, session) {
             geom_abline(data = history_data$history,
                         aes(intercept = intercept, slope = slope, color = is_recent),
                         linewidth = 0.5, show.legend = FALSE) +
-            scale_color_manual(values = c("FALSE" = "indianred1", "TRUE" = "blue")) +
+            scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red")) +
             labs(title = "History of Linear Fits")
         })
       }
@@ -635,7 +634,7 @@ server <- function(input, output, session) {
         ggplot(aes_string(x = input$x_var, y = input$y_var)) +
         geom_point(shape = 1) +
         labs(title = "Data Fit") +
-        stat_smooth(method = "lm", se = FALSE, col="blue", linewidth = 0.5)
+        stat_smooth(method = "lm", se = FALSE, col="red", linewidth = 0.5)
     })
 
   ######################################################################

@@ -1,0 +1,130 @@
+```{r Packages & Setup}
+knitr::opts_chunk$set(echo = FALSE)
+suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("gridExtra"))
+suppressPackageStartupMessages(library("visdat"))
+suppressPackageStartupMessages(library("countrycode"))
+suppressPackageStartupMessages(library("ggplot2"))
+suppressPackageStartupMessages(library("knitr"))
+suppressPackageStartupMessages(library("nullabor"))
+suppressPackageStartupMessages(library("ggthemes"))
+suppressPackageStartupMessages(library("broom"))
+suppressPackageStartupMessages(library("latex2exp"))
+suppressPackageStartupMessages(library("reshape2"))
+suppressPackageStartupMessages(library("readxl"))
+suppressPackageStartupMessages(library("lubridate"))
+suppressPackageStartupMessages(library("openintro"))
+suppressPackageStartupMessages(library("janitor"))
+```
+
+```{r TOY DATASET 1 TEST}
+
+toy_1_x <- rnorm(10000)
+toy_1_y <- (0.5*toy_1_x-1)*(0.5*toy_1_x+1) + rnorm(10000, sd = 0.8)
+toy_1_data <- data.frame(x=toy_1_x, y=toy_1_y)
+
+write.csv(toy_1_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_1.csv", row.names=FALSE)
+
+
+
+toy_1_lm_full <- lm(y ~ x, data = toy_1_data)
+toy_1_aug_full <- augment(toy_1_lm_full)
+
+toy_1_hist <- data.frame(x = numeric(), y = numeric())
+
+toy_1_rvf__empty <- ggplot(toy_1_aug_full, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0) + 
+  geom_hline(yintercept = 0, linetype = 2, col = "black") +
+  labs(title = "Residuals vs. Fitted History",
+           x = "Fitted values",
+           y = "Residuals")
+
+rvf_current <- function(data) {
+  data %>% ggplot(aes(x = .fitted, y = .resid)) +
+    geom_point() +
+    stat_smooth(method = "loess", se = FALSE, n = sample_size)
+}
+
+sample_size <- 250
+
+# run code below repeatedly to get a history plot under resampling
+toy_1_lm <- lm(y ~ x, data = sample_n(toy_1_data, sample_size))
+toy_1_aug <- augment(toy_1_lm)
+
+
+toy_1_new_line <- ggplot_build(rvf_current(toy_1_aug))$data[[2]][, c("x", "y")]
+
+toy_1_new_line$group <- nrow(toy_1_hist) / sample_size + 1
+
+toy_1_new_line$is_recent <- "TRUE"                          
+
+if (nrow(toy_1_hist) > 0) {
+  toy_1_hist$is_recent <- "FALSE"
+}  
+
+toy_1_hist <- rbind(toy_1_hist, toy_1_new_line)
+
+toy_1_hist_plot <- toy_1_rvf__empty +
+  geom_line(data = toy_1_hist, 
+            aes(x = x, y = y, group = group, color = is_recent),
+            linewidth = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
+
+toy_1_hist_plot
+```
+
+
+```{r TOY DATASET 2 TEST}
+
+toy_2_x <- rnorm(10000)
+toy_2_y <- (0.5*toy_2_x-1)*(0.5*toy_2_x+1) + rnorm(10000, sd = 0.8)
+toy_2_data <- data.frame(x=toy_2_x, y=toy_2_y)
+
+
+
+toy_2_lm_full <- lm(y ~ x, data = toy_2_data)
+toy_2_aug_full <- augment(toy_2_lm_full)
+
+toy_2_hist <- data.frame(x = numeric(), y = numeric())
+
+toy_2_rvf__empty <- ggplot(toy_2_aug_full, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0) + 
+  labs(title = "Scale-Location History",
+           x = "Fitted values",
+           y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+
+sl_current <- function(data) {
+  data %>% ggplot(aes(x = normalize(.fitted), y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
+    geom_point() +
+    stat_smooth(method = "loess", se = FALSE, n = sample_size)
+}
+
+sample_size <- 250
+
+# run code below repeatedly to get a history plot under resampling
+toy_2_lm <- lm(y ~ x, data = sample_n(toy_2_data, sample_size))
+toy_2_aug <- augment(toy_2_lm)
+
+
+toy_2_new_line <- ggplot_build(sl_current(toy_2_aug))$data[[2]][, c("x", "y")]
+
+toy_2_new_line$group <- nrow(toy_2_hist) / sample_size + 1
+
+toy_2_new_line$is_recent <- "TRUE"                          
+
+if (nrow(toy_2_hist) > 0) {
+  toy_2_hist$is_recent <- "FALSE"
+}  
+
+toy_2_hist <- rbind(toy_2_hist, toy_2_new_line)
+
+toy_2_hist_plot <- toy_2_rvf__empty +
+  geom_line(data = toy_2_hist, 
+            aes(x = x, y = y, group = group, color = is_recent),
+            linewidth = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
+
+toy_2_hist_plot
+```
+
