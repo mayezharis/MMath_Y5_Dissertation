@@ -11,6 +11,9 @@
 # Different datasets
 
 ToyData1 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_1.csv")
+ToyData2 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_2.csv")
+ToyData3 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_3.csv")
+ToyData4 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_4.csv")
 
 # ENERGY DATA
 EnergyData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/energy_data_cleaned.csv")
@@ -34,6 +37,9 @@ BasketballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Ye
 
 
 dataset_choices <- c("Toy Dataset 1 (quadratic with noise)" = "toy_data_1",
+                     "Toy Dataset 2 (cubic with noise)" = "toy_data_2",
+                     "Toy Dataset 3 (logarithmic with noise)" = "toy_data_3",
+                     "Toy Dataset 4 (exponential with noise)" = "toy_data_4",
                      "NBA Player Data" = "nba_data_cleaned",
                      "Cricket Batting Data" = "cric_bat_data",
                      "MLB Game Data" = "mlb_data_cleaned",
@@ -182,6 +188,15 @@ server <- function(input, output, session) {
     validate(need(input$DataSet != "", "Please select a data set."))
     if (input$DataSet == "toy_data_1") {
       dataset <- ToyData1
+    }
+    else if (input$DataSet == "toy_data_2") {
+      dataset <- ToyData2
+    }
+    else if (input$DataSet == "toy_data_3") {
+      dataset <- ToyData3
+    }
+    else if (input$DataSet == "toy_data_4") {
+      dataset <- ToyData4
     }
     else if (input$DataSet == "nba_data_cleaned"){
       dataset <- BasketballData
@@ -634,7 +649,8 @@ server <- function(input, output, session) {
         ggplot(aes_string(x = input$x_var, y = input$y_var)) +
         geom_point(shape = 1) +
         labs(title = "Data Fit") +
-        stat_smooth(method = "lm", se = FALSE, col="red", linewidth = 0.5)
+        # stat_smooth(method = "lm", se = FALSE, col="red", linewidth = 0.5) +
+        geom_abline(intercept = coef(mod())[1], slope = coef(mod())[2], color = "red")
     })
 
   ######################################################################

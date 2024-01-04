@@ -18,12 +18,32 @@ suppressPackageStartupMessages(library("openintro"))
 suppressPackageStartupMessages(library("janitor"))
 ```
 
+```{r functions}
+rvf_current <- function(data) {
+  data %>% ggplot(aes(x = .fitted, y = .resid)) +
+    geom_point() +
+    stat_smooth(method = "loess", se = FALSE, n = sample_size)
+}
+
+sl_current <- function(data) {
+  data %>% ggplot(aes(x = .fitted, y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
+    geom_point() +
+    stat_smooth(method = "loess", se = FALSE, n = sample_size)
+}
+
+qq_current <- function(data) {
+  data %>% ggplot(aes(sample = .std.resid)) +
+    stat_qq_line() +
+    stat_qq(geom = "path")
+}
+```
+
 ```{r TOY DATASET 1 TEST}
 
 toy_1_x <- rnorm(10000)
 toy_1_y <- (0.5*toy_1_x-1)*(0.5*toy_1_x+1) + rnorm(10000, sd = 0.8)
 toy_1_data <- data.frame(x=toy_1_x, y=toy_1_y)
-
+# 
 write.csv(toy_1_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_1.csv", row.names=FALSE)
 
 
@@ -39,12 +59,6 @@ toy_1_rvf__empty <- ggplot(toy_1_aug_full, aes(x = .fitted, y = .resid)) +
   labs(title = "Residuals vs. Fitted History",
            x = "Fitted values",
            y = "Residuals")
-
-rvf_current <- function(data) {
-  data %>% ggplot(aes(x = .fitted, y = .resid)) +
-    geom_point() +
-    stat_smooth(method = "loess", se = FALSE, n = sample_size)
-}
 
 sample_size <- 250
 
@@ -77,10 +91,12 @@ toy_1_hist_plot
 
 ```{r TOY DATASET 2 TEST}
 
+# set.seed(234)
 toy_2_x <- rnorm(10000)
-toy_2_y <- (0.5*toy_2_x-1)*(0.5*toy_2_x+1) + rnorm(10000, sd = 0.8)
+toy_2_y <- (toy_2_x-0.5)*(-18*toy_2_x+0.4)*(-toy_2_x-0.5) + rnorm(10000, sd = 20)
 toy_2_data <- data.frame(x=toy_2_x, y=toy_2_y)
 
+write.csv(toy_2_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_2.csv", row.names=FALSE)
 
 
 toy_2_lm_full <- lm(y ~ x, data = toy_2_data)
@@ -88,21 +104,16 @@ toy_2_aug_full <- augment(toy_2_lm_full)
 
 toy_2_hist <- data.frame(x = numeric(), y = numeric())
 
-toy_2_rvf__empty <- ggplot(toy_2_aug_full, aes(x = .fitted, y = .resid)) +
+toy_2_sl_empty <- ggplot(toy_2_aug_full, aes(x = .fitted, y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
   geom_point(alpha = 0) + 
   labs(title = "Scale-Location History",
            x = "Fitted values",
            y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
 
-sl_current <- function(data) {
-  data %>% ggplot(aes(x = normalize(.fitted), y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
-    geom_point() +
-    stat_smooth(method = "loess", se = FALSE, n = sample_size)
-}
-
 sample_size <- 250
 
 # run code below repeatedly to get a history plot under resampling
+
 toy_2_lm <- lm(y ~ x, data = sample_n(toy_2_data, sample_size))
 toy_2_aug <- augment(toy_2_lm)
 
@@ -115,16 +126,220 @@ toy_2_new_line$is_recent <- "TRUE"
 
 if (nrow(toy_2_hist) > 0) {
   toy_2_hist$is_recent <- "FALSE"
-}  
+}
 
 toy_2_hist <- rbind(toy_2_hist, toy_2_new_line)
 
-toy_2_hist_plot <- toy_2_rvf__empty +
+toy_2_hist_plot_sl <- toy_2_sl_empty +
   geom_line(data = toy_2_hist, 
             aes(x = x, y = y, group = group, color = is_recent),
             linewidth = 0.5, show.legend = FALSE) +
   scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
 
-toy_2_hist_plot
+toy_2_hist_plot_sl
 ```
 
+```{r}
+
+toy_2_rvf_empty <- ggplot(toy_2_aug_full, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0) + 
+  geom_hline(yintercept = 0, linetype = 2, col = "black") +
+  labs(title = "Residuals vs. Fitted History",
+           x = "Fitted values",
+           y = "Residuals")
+
+# run code below repeatedly to get a history plot under resampling
+toy_2_lm <- lm(y ~ x, data = sample_n(toy_2_data, sample_size))
+toy_2_aug <- augment(toy_2_lm)
+
+
+toy_2_new_line <- ggplot_build(rvf_current(toy_2_aug))$data[[2]][, c("x", "y")]
+
+toy_2_new_line$group <- nrow(toy_2_hist) / sample_size + 1
+
+toy_2_new_line$is_recent <- "TRUE"                          
+
+if (nrow(toy_2_hist) > 0) {
+  toy_2_hist$is_recent <- "FALSE"
+}  
+
+toy_2_hist <- rbind(toy_2_hist, toy_2_new_line)
+
+toy_2_hist_plot_rvf <- toy_2_rvf_empty +
+  geom_line(data = toy_2_hist, 
+            aes(x = x, y = y, group = group, color = is_recent),
+            linewidth = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
+
+toy_2_hist_plot_rvf
+```
+
+```{r TOY DATASET 3 TEST}
+
+# set.seed(234)
+toy_3_x <- rnorm(10000)
+toy_3_y <- log(toy_3_x + rnorm(1)) + rnorm(10000, sd = 0.75)
+toy_3_data <- data.frame(x=toy_3_x, y=toy_3_y)
+
+write.csv(toy_3_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_3.csv", row.names=FALSE)
+
+
+toy_3_lm_full <- lm(y ~ x, data = toy_3_data)
+toy_3_aug_full <- augment(toy_3_lm_full)
+
+toy_3_hist <- data.frame(x = numeric(), y = numeric())
+
+toy_3_sl_empty <- ggplot(toy_3_aug_full, aes(x = .fitted, y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
+  geom_point(alpha = 0) + 
+  labs(title = "Scale-Location History",
+           x = "Fitted values",
+           y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+
+sample_size <- 250
+
+# run code below repeatedly to get a history plot under resampling
+
+toy_3_lm <- lm(y ~ x, data = sample_n(toy_3_data, sample_size))
+toy_3_aug <- augment(toy_3_lm)
+
+
+toy_3_new_line <- ggplot_build(sl_current(toy_3_aug))$data[[2]][, c("x", "y")]
+
+toy_3_new_line$group <- nrow(toy_3_hist) / sample_size + 1
+
+toy_3_new_line$is_recent <- "TRUE"                          
+
+if (nrow(toy_3_hist) > 0) {
+  toy_3_hist$is_recent <- "FALSE"
+}
+
+toy_3_hist <- rbind(toy_3_hist, toy_3_new_line)
+
+toy_3_hist_plot_sl <- toy_3_sl_empty +
+  geom_line(data = toy_3_hist, 
+            aes(x = x, y = y, group = group, color = is_recent),
+            linewidth = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
+
+toy_3_hist_plot_sl
+```
+
+```{r}
+
+toy_3_rvf_empty <- ggplot(toy_3_aug_full, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0) + 
+  geom_hline(yintercept = 0, linetype = 2, col = "black") +
+  labs(title = "Residuals vs. Fitted History",
+           x = "Fitted values",
+           y = "Residuals")
+
+# run code below repeatedly to get a history plot under resampling
+toy_3_lm <- lm(y ~ x, data = sample_n(toy_3_data, sample_size))
+toy_3_aug <- augment(toy_3_lm)
+
+
+toy_3_new_line <- ggplot_build(rvf_current(toy_3_aug))$data[[2]][, c("x", "y")]
+
+toy_3_new_line$group <- nrow(toy_3_hist) / sample_size + 1
+
+toy_3_new_line$is_recent <- "TRUE"                          
+
+if (nrow(toy_3_hist) > 0) {
+  toy_3_hist$is_recent <- "FALSE"
+}  
+
+toy_3_hist <- rbind(toy_3_hist, toy_3_new_line)
+
+toy_3_hist_plot_rvf <- toy_3_rvf_empty +
+  geom_line(data = toy_3_hist, 
+            aes(x = x, y = y, group = group, color = is_recent),
+            linewidth = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
+
+toy_3_hist_plot_rvf
+```
+
+
+```{r TOY DATASET 4 TEST}
+
+# set.seed(234)
+toy_4_x <- runif(10000, min = -0.25, max = 1)
+toy_4_y <- 0.5*exp(-20*toy_4_x^3)-0.5 + rnorm(10000, sd = 0.05)
+toy_4_data <- data.frame(x=toy_4_x, y=toy_4_y)
+
+write.csv(toy_4_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_4.csv", row.names=FALSE)
+
+
+toy_4_lm_full <- lm(y ~ x, data = toy_4_data)
+toy_4_aug_full <- augment(toy_4_lm_full)
+
+toy_4_hist <- data.frame(x = numeric(), y = numeric())
+
+toy_4_sl_empty <- ggplot(toy_4_aug_full, aes(x = .fitted, y = sqrt(abs((.resid-mean(.resid))/sd(.resid))))) +
+  geom_point(alpha = 0) + 
+  labs(title = "Scale-Location History",
+           x = "Fitted values",
+           y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
+
+sample_size <- 250
+
+# run code below repeatedly to get a history plot under resampling
+
+toy_4_lm <- lm(y ~ x, data = sample_n(toy_4_data, sample_size))
+toy_4_aug <- augment(toy_4_lm)
+
+
+toy_4_new_line <- ggplot_build(sl_current(toy_4_aug))$data[[2]][, c("x", "y")]
+
+toy_4_new_line$group <- nrow(toy_4_hist) / sample_size + 1
+
+toy_4_new_line$is_recent <- "TRUE"                          
+
+if (nrow(toy_4_hist) > 0) {
+  toy_4_hist$is_recent <- "FALSE"
+}
+
+toy_4_hist <- rbind(toy_4_hist, toy_4_new_line)
+
+toy_4_hist_plot_sl <- toy_4_sl_empty +
+  geom_line(data = toy_4_hist, 
+            aes(x = x, y = y, group = group, color = is_recent),
+            linewidth = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
+
+toy_4_hist_plot_sl
+```
+
+```{r}
+toy_4_rvf_empty <- ggplot(toy_4_aug_full, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0) + 
+  geom_hline(yintercept = 0, linetype = 2, col = "black") +
+  labs(title = "Residuals vs. Fitted History",
+           x = "Fitted values",
+           y = "Residuals")
+
+# run code below repeatedly to get a history plot under resampling
+toy_4_lm <- lm(y ~ x, data = sample_n(toy_4_data, sample_size))
+toy_4_aug <- augment(toy_4_lm)
+
+
+toy_4_new_line <- ggplot_build(rvf_current(toy_4_aug))$data[[2]][, c("x", "y")]
+
+toy_4_new_line$group <- nrow(toy_4_hist) / sample_size + 1
+
+toy_4_new_line$is_recent <- "TRUE"                          
+
+if (nrow(toy_4_hist) > 0) {
+  toy_4_hist$is_recent <- "FALSE"
+}  
+
+toy_4_hist <- rbind(toy_4_hist, toy_4_new_line)
+
+toy_4_hist_plot_rvf <- toy_4_rvf_empty +
+  geom_line(data = toy_4_hist, 
+            aes(x = x, y = y, group = group, color = is_recent),
+            linewidth = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = c("FALSE" = "cornflowerblue", "TRUE" = "red"))
+
+toy_4_hist_plot_rvf
+```

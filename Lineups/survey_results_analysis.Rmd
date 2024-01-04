@@ -1,0 +1,36 @@
+```{r Packages & Setup}
+knitr::opts_chunk$set(echo = FALSE)
+suppressPackageStartupMessages(library("tidyverse"))
+suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("gridExtra"))
+suppressPackageStartupMessages(library("visdat"))
+suppressPackageStartupMessages(library("countrycode"))
+suppressPackageStartupMessages(library("ggplot2"))
+suppressPackageStartupMessages(library("knitr"))
+suppressPackageStartupMessages(library("nullabor"))
+suppressPackageStartupMessages(library("ggthemes"))
+suppressPackageStartupMessages(library("broom"))
+suppressPackageStartupMessages(library("latex2exp"))
+suppressPackageStartupMessages(library("reshape2"))
+suppressPackageStartupMessages(library("readxl"))
+suppressPackageStartupMessages(library("lubridate"))
+suppressPackageStartupMessages(library("openintro"))
+suppressPackageStartupMessages(library("janitor"))
+```
+
+```{r REMOVING UNWANTED ENTRIES}
+solutions <- c("8", "9", "6", "2", "7", "2", "6", "5")
+
+orig_data <- read_excel("lineup_survey_results.xlsx", sheet = "cleaned_data")
+
+orig_data <- orig_data %>% clean_names()
+
+orig_data <- orig_data %>% filter(lu1 == solutions[1] & lu5 == solutions[5])
+
+to_factor <- c("stats_y2", "level_of_study", "year_of_study",  "lu1", "lu1_confidence", "lu2", "lu2_confidence", "lu3", "lu3_confidence", "lu4", "lu4_confidence", "lu5", "lu5_confidence", "lu6", "lu6_confidence", "lu7", "lu7_confidence", "lu8", "lu8_confidence")
+
+for (col in to_factor) {
+  orig_data[[col]] <- factor(orig_data[[col]])
+}
+```
+
