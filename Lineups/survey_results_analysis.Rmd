@@ -57,7 +57,7 @@ correctness_data <- subset(data, select = c(lu1_correct, lu2_correct, lu3_correc
                                             lu5_correct, lu6_correct, lu7_correct, lu8_correct))
 ```
 
-Need to create bar graphs or pie charts to show how many participants responded to a question correctly. Do mention the first and fifth lineup as well, but without any graphs. Just mention to state how not too many entries had to be deleted. 
+Need to create bar graphs or pie charts to show how many participants responded to a question correctly. Do mention the first and fifth lineup as well, but without any graphs. Additionally, state how not too many entries had to be deleted. √
 
 Need some visuals on who has done Stats Y2, on the level of study (UG or PG), and on the year of study (only need this for UG as PG only has one year anyway).
 
@@ -71,10 +71,12 @@ lineup_p_val <- function(lineup_number, size = 9) {
   observers <- length(lineup)
   num_correct <- length(lineup[lineup == TRUE])
   p_val <- 0
-  for (i in num_correct:observers) {
+  if (num_correct != observers) {
+      for (i in num_correct:observers) {
     p_val <- p_val + choose(observers, i) * ((1/size)^i) * ((size-1)/size)^(observers-i)
   }
-  p_val
+  }
+  round(p_val, 6)
 }
 
 p_values <- c()
@@ -83,27 +85,68 @@ for (lineup_number in 1:8) {
 }
 
 p_values_df <- data.frame("lineup" = 1:8,
-                          "p_value" = round(p_values, 6))
+                          "p_value" = p_values)
 
 ```
 
-```{r correctness per question (visuals)}
-# correct_count_df <- correctness_data %>%
-#   summarise(lu1_correct = sum(lu1_correct), lu1_incorrect = sum(!lu1_correct),
-#             lu2_correct = sum(lu2_correct), lu2_incorrect = sum(!lu2_correct),
-#             lu3_correct = sum(lu3_correct), lu3_incorrect = sum(!lu3_correct),
-#             lu4_correct = sum(lu4_correct), lu4_incorrect = sum(!lu4_correct),
-#             lu5_correct = sum(lu5_correct), lu5_incorrect = sum(!lu5_correct),
-#             lu6_correct = sum(lu6_correct), lu6_incorrect = sum(!lu6_correct),
-#             lu7_correct = sum(lu7_correct), lu7_incorrect = sum(!lu7_correct),
-#             lu8_correct = sum(lu8_correct), lu8_incorrect = sum(!lu8_correct))
+```{r correctness per question (setting up dataframes)}
 
-reshaped_correctness_df <- tidyr::gather(correctness_data, key = "Question", value = "Answer")
+colnames(correctness_data) <- c("Lineup 1", "Lineup 2", "Lineup 3", "Lineup 4", 
+                                "Lineup 5", "Lineup 6", "Lineup 7", "Lineup 8")
 
-correctness_count_df <- reshaped_correctness_df %>%
-  group_by(Question, Answer) %>%
+reshaped_correctness_df <- tidyr::gather(correctness_data, key = "Lineup", value = "Correct.Answer")
+
+correct_count_df <- reshaped_correctness_df %>%
+  group_by(Lineup, Correct.Answer) %>%
   summarise(count = n(), .groups = "keep") %>%
-  spread(Answer, count, fill = 0)
+  spread(Correct.Answer, count, fill = 0)
+
+
+# convert data to long format for easier plotting
+correct_prop_df <- tidyr::gather(correct_count_df, key = "Correct.Answer", value = "Count", -Lineup)
+
+# Calculate proportion for each lineup
+correct_prop_df <- correct_prop_df %>%
+  group_by(Lineup) %>%
+  mutate(Proportion = Count / sum(Count))
+
+```
+
+
+```{r correctness stacked bar graph}
+
+# Plot horizontal bar graph
+correct_prop_bar_graph <- ggplot(correct_prop_df, aes(x = Proportion, y = Lineup, fill = Correct.Answer)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = ifelse(Proportion > 0, scales::percent(Proportion), "")),
+            position = position_stack(vjust = 0.5), size = 4, color = "white") +
+  labs(title = "Proportion of Correct and Incorrect Counts for Each Lineup",
+       x = "Proportion",
+       y = "Lineup") +
+  scale_fill_manual(values = c("TRUE" = "seagreen", "FALSE" = "firebrick3")) +
+  scale_x_continuous(labels = scales::percent_format(scale = 100)) +
+  scale_y_discrete(limits=rev) +
+  theme_minimal()
+
+```
+
+```{r correctness pie charts}
+
+correct_pie_charts <- ggplot(correct_prop_df, aes(x = "", y = Proportion, fill = Correct.Answer)) +
+  geom_bar(stat = "identity", position = "stack", width = 1) +
+  geom_text(aes(label = ifelse(Proportion > 0, scales::percent(Proportion), "")),
+            position = position_stack(vjust = 0.5), size = 4, color = "white") +
+  coord_polar(theta = "y") +
+  facet_wrap(~ Lineup, nrow = 2, ncol = 4) +
+  labs(title = "Proportion of Correct and Incorrect Counts for Each Lineup",
+       x = NULL,
+       y = NULL) +
+  scale_fill_manual(values = c("TRUE" = "seagreen", "FALSE" = "firebrick3")) +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
 
 ```
 
