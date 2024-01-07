@@ -18,19 +18,64 @@ suppressPackageStartupMessages(library("openintro"))
 suppressPackageStartupMessages(library("janitor"))
 ```
 
-```{r REMOVING UNWANTED ENTRIES}
+```{r INITIAL CLEANING}
+
 solutions <- c("8", "9", "6", "2", "7", "2", "6", "5")
 
 orig_data <- read_excel("lineup_survey_results.xlsx", sheet = "cleaned_data")
 
-orig_data <- orig_data %>% clean_names()
+orig_data <- orig_data %>% 
+  clean_names() %>% 
+  filter(lu1 == solutions[1] & lu5 == solutions[5])
 
-orig_data <- orig_data %>% filter(lu1 == solutions[1] & lu5 == solutions[5])
 
-to_factor <- c("stats_y2", "level_of_study", "year_of_study",  "lu1", "lu1_confidence", "lu2", "lu2_confidence", "lu3", "lu3_confidence", "lu4", "lu4_confidence", "lu5", "lu5_confidence", "lu6", "lu6_confidence", "lu7", "lu7_confidence", "lu8", "lu8_confidence")
+# factor columns
+to_factor <- c("stats_y2", "level_of_study", "year_of_study",  
+               "lu1", "lu1_confidence", "lu2", "lu2_confidence", "lu3", "lu3_confidence", "lu4", "lu4_confidence", 
+               "lu5", "lu5_confidence", "lu6", "lu6_confidence", "lu7", "lu7_confidence", "lu8", "lu8_confidence")
 
 for (col in to_factor) {
   orig_data[[col]] <- factor(orig_data[[col]])
 }
+
+
+# remove comments columns
+data <- subset(orig_data, select = -c(lu1_comments, lu2_comments, lu3_comments, lu4_comments, 
+                                      lu5_comments, lu6_comments, lu7_comments, lu8_comments))
+
+p_val_data <- subset(data, select = c(lu1, lu2, lu3, lu4, lu5, lu6, lu7, lu8))
+```
+
+Need to create bar graphs or pie charts to show how many participants responded to a question correctly. Do mention the first and fifth lineup as well, but without any graphs. Just mention to state how not too many entries had to be deleted. 
+
+Need some visuals on who has done Stats Y2, on the level of study (UG or PG), and on the year of study (only need this for UG as PG only has one year anyway).
+
+Create a function to evaluate the p-value from each lineup using the formula from the literature.
+
+
+```{r p-values of lineups}
+
+lineup_p_val <- function(lineup_number, size = 9) {
+  # lineups <- c("lu1", "lu2", "lu3", "lu4", "lu5", "lu6", "lu7", "lu8")
+  lineup <- p_val_data[[lineup_number]]
+  observers <- length(lineup)
+  num_correct <- length(p_val_data[[lineup_number]][p_val_data[[lineup_number]]==solutions[lineup_number]])
+  p_val <- 0
+  for (i in num_correct:observers) {
+    p_val <- p_val + choose(observers, i) * ((1/size)^i) * ((size-1)/size)^(observers-i)
+  }
+  p_val
+}
+
+p_values <- c()
+for (lineup_number in 1:8) {
+  p_values <- append(p_values, lineup_p_val(lineup_number))
+}
+
+p_values_df <- data.frame(rbind(as.integer(1:8), p_values))
+
+p_values_df <- t(data.frame("lineup" = 1:8,
+                          "p_value" = p_values))
+
 ```
 
