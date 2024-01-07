@@ -127,8 +127,10 @@ write.csv(news_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/
 mlb_data <- read.csv(unz("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/Final Datasets/game_logs.zip", "game_logs.csv"))
 
 mlb_vars <- c("attendance", "length_minutes",
-              "v_score", "v_at_bats", "v_hits", "v_homeruns", "v_walks", "v_strikeouts", "v_stolen_bases", "v_errors",
-              "h_score", "h_at_bats", "h_hits", "h_homeruns", "h_walks", "h_strikeouts", "h_stolen_bases", "h_errors")
+              "v_score", "v_at_bats", "v_hits", "v_homeruns", 
+              "v_walks", "v_strikeouts", "v_stolen_bases", "v_errors",
+              "h_score", "h_at_bats", "h_hits", "h_homeruns", 
+              "h_walks", "h_strikeouts", "h_stolen_bases", "h_errors")
 
 
 mlb_data_cleaned <- mlb_data %>%
@@ -150,6 +152,7 @@ mlb_data_cleaned <- na.omit(mlb_data_cleaned)
 # ADDING NOISE
 mlb_data_cleaned[names(mlb_data_cleaned)] <- lapply(mlb_data_cleaned[names(mlb_data_cleaned)], jitter, factor = 3)
 
+
 mlb_data_final <- mlb_data_cleaned %>%
   rename("Home Team Score" = "h_score",
          "Visiting Team Score" = "v_score",
@@ -167,50 +170,28 @@ mlb_data_final <- mlb_data_cleaned %>%
   clean_names()
 
 
+
 mlb_data_final <- remove_outliers(mlb_data_final, names(mlb_data_final), lims = c(.25, .75))
 
 
 write.csv(mlb_data_final, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/mlb_data_cleaned.csv", row.names = FALSE)
 
-
-
-# mlb_y_choices <- c("Home Team Score" = "h_score",
-#                    "Visiting Team Score" = "v_score",
-#                    "Score Difference" = "score_diff")
-# mlb_x_choices <- c("No. of hits by home team" = "h_hits",
-#                    "No. of hits by visiting team" = "v_hits",
-#                    "No. of homeruns by home team" = "h_homeruns",
-#                    "No. of homeruns by visiting team" = "v_homeruns",
-#                    "No. of strikeouts by home team" = "h_strikeouts",
-#                    "No. of strikeouts by visiting team" = "v_strikeouts",
-#                    "No. of at bats by home team" = "h_at_bats",
-#                    "No. of at bats by visiting team" = "v_at_bats",
-#                    "Game length (in minutes)" = "length_minutes",
-#                    "Attendance" = "attendance")
 ```
 
 ```{r CRICKET ODI DATA}
 odi_data <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/Final Datasets/cricket_odi_data.csv")
 
-batting_vars_y <- c("No. of runs scored" = "Innings.Runs.Scored", 
-                    "Minutes Batted" = "Innings.Minutes.Batted",
-                    "No. of boundaries (fours)" = "Innings.Boundary.Fours",
-                    "No. of boundaries (sixes)" = "Innings.Boundary.Sixes")
-
-batting_vars_x <- c("Minutes Batted" = "Innings.Minutes.Batted",
-                    "No.of Balls Faced" = "Innings.Balls.Faced", 
-                    "No. of boundaries (fours)" = "Innings.Boundary.Fours", 
-                    "No. of boundaries (sixes)" = "Innings.Boundary.Sixes", 
-                    "Average Strike Rate" = "Innings.Batting.Strike.Rate")
 
 odi_data[odi_data == "-"|odi_data == ""] <- NA
 
 
-batting_Vars <- c("Innings.Player", "Innings.Runs.Scored", "Innings.Minutes.Batted", "Innings.Balls.Faced", "Innings.Boundary.Fours", "Innings.Boundary.Sixes", "Innings.Batting.Strike.Rate")
+#####################################################################
+#####################################################################
+#####################################################################
 
-bowling_vars <- c("Innings.Player", "Innings.Overs.Bowled", "Innings.Maidens.Bowled", "Innings.Runs.Conceded", "Innings.Wickets.Taken", "Innings.Economy.Rate")
+batting_vars <- c("Innings.Player", "Innings.Runs.Scored", "Innings.Minutes.Batted", "Innings.Balls.Faced", "Innings.Boundary.Fours", "Innings.Boundary.Sixes", "Innings.Batting.Strike.Rate")
 
-cric_bat_data <- odi_data %>% dplyr::select(all_of(batting_Vars)) %>%
+cric_bat_data <- odi_data %>% dplyr::select(all_of(batting_vars)) %>%
   filter(!is.na(as.numeric(Innings.Runs.Scored)))
 
 cric_bat_data <- na.omit(cric_bat_data)
@@ -219,8 +200,11 @@ cric_bat_data <- mutate_all(cric_bat_data, function(x) as.numeric(as.character(x
 
 # ADDING NOISE
 cric_bat_data[names(cric_bat_data)] <- lapply(cric_bat_data[names(cric_bat_data)], jitter, factor = 3)
+cric_bat_data <- abs(cric_bat_data)
 
-cric_data_cleaned <- cric_bat_data %>%
+
+
+cric_bat_cleaned <- cric_bat_data %>%
   rename("No. of runs scored" = "Innings.Runs.Scored", 
          "Minutes Batted" = "Innings.Minutes.Batted",
          "No. of boundaries (fours)" = "Innings.Boundary.Fours",
@@ -230,11 +214,48 @@ cric_data_cleaned <- cric_bat_data %>%
          "Average Strike Rate" = "Innings.Batting.Strike.Rate") %>%
   clean_names()
 
-cric_data_cleaned <- remove_outliers(cric_data_cleaned, names(cric_data_cleaned), lims = c(.25, .75))
+cric_bat_cleaned <- remove_outliers(cric_bat_cleaned, names(cric_bat_cleaned), lims = c(.25, .75))
+
+cric_bat_cleaned <- cric_bat_cleaned[, c(1,2,3,6,4,5)]
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+bowling_vars <- c("Innings.Player", "Innings.Overs.Bowled", "Innings.Maidens.Bowled", "Innings.Runs.Conceded", "Innings.Wickets.Taken", "Innings.Economy.Rate")
+
+cric_bowl_data <- odi_data %>% dplyr::select(all_of(bowling_vars)) %>%
+  filter(!is.na(as.numeric(Innings.Overs.Bowled)))
+
+cric_bowl_data <- na.omit(cric_bowl_data)
+cric_bowl_data <- cric_bowl_data[,-1]
+cric_bowl_data <- mutate_all(cric_bowl_data, function(x) as.numeric(as.character(x)))
+
+# ADDING NOISE
+cric_bowl_data[names(cric_bowl_data)] <- lapply(cric_bowl_data[names(cric_bowl_data)], jitter, factor = 3)
+cric_bowl_data <- abs(cric_bowl_data)
+
+cric_bowl_cleaned <- cric_bowl_data %>% 
+  rename("No. of Overs Bowled" = "Innings.Overs.Bowled",
+         "No. of Madien Overs Bowled" = "Innings.Maidens.Bowled",
+         "No. of Runs Conceded" = "Innings.Runs.Conceded",
+         "No. of Wickets Taken" = "Innings.Wickets.Taken",
+         "Average Economy Rate" = "Innings.Economy.Rate") %>%
+  clean_names()
+
+cric_bowl_cleaned <- remove_outliers(cric_bowl_cleaned, names(cric_bowl_cleaned), lims = c(.25, .75))
+
+cric_bowl_cleaned <- cric_bowl_cleaned[, c(3,4,5,1,2)]
+
+#####################################################################
+#####################################################################
+#####################################################################
 
 
+write.csv(cric_bat_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv", row.names = FALSE)
 
-write.csv(cric_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv", row.names = FALSE)
+write.csv(cric_bowl_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bowl_data.csv", row.names = FALSE)
+
 
 ```
 
@@ -249,11 +270,12 @@ nba_vars <- c("Age", "G", "GS", "MP", "FG.",
               "AST", "STL", "BLK", "TOV", "PTS")
 
 
+
 nba_data_cleaned <- nba_data %>%
   select(all_of(nba_vars)) %>%
   rename("Average Points per Game" = "PTS",
          "Age" = "Age", 
-         "Average no. of minutes player per game" = "MP", 
+         "Average no. of minutes played per game" = "MP", 
          "Games Played" = "G",
          "Games Started" = "GS",
          "Percentage of field goals made" = "FG.",
@@ -267,33 +289,31 @@ nba_data_cleaned <- nba_data %>%
          "Average blocks per game" = "BLK",
          "Average turnovers per game" = "TOV") %>%
   clean_names()
-  
+
+nba_col_order <- c("average_points_per_game",
+                   "average_assists_per_game",
+                   "average_rebounds_per_game",
+                   "average_blocks_per_game",
+                   "average_steals_per_game",
+                   "average_turnovers_per_game",
+                   "percentage_of_field_goals_made",
+                   "percentage_of_2_pointers_made",
+                   "percentage_of_3_pointers_made",
+                   "effective_field_goals_made",
+                   "percentage_of_free_throws_made",
+                   "games_played",
+                   "games_started",
+                   "average_no_of_minutes_played_per_game",
+                   "age")
+nba_data_cleaned <- nba_data_cleaned[, nba_col_order]
 
 
 # ADDING NOISE
 nba_data_cleaned[names(nba_data_cleaned)] <- lapply(nba_data_cleaned[names(nba_data_cleaned)], jitter, factor = 3)
 
+nba_data_cleaned <- abs(nba_data_cleaned)
+
+
 write.csv(nba_data_cleaned, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/nba_data_cleaned.csv", row.names = FALSE)
-
-
-# nba_y_vars <- c("Average Points per Game" = "PTS", 
-#                 "Averge No. of minutes played per game" = "MP", 
-#                 "Games Played" = "G", 
-#                 "Games Started" = "GS")
-# 
-# nba_x_vars <- c("Age" = "Age", 
-#                 "Average no. of minutes player per game" = "MP", 
-#                 "Games Played" = "G",
-#                 "Games Started" = "GS",
-#                 "Percentage of field goals made" = "FG.",
-#                 "Percentage of 3 pointers made (%3PM)" = "X3P.",
-#                 "Percentage of 2 Pointers made (%2PM)" = "X2P.",
-#                 "%3PM/%2PM" = "eFG.",
-#                 "Percentage of free throws made" = "FT.",
-#                 "Average rebounds per game" = "TRB",
-#                 "Average assists per game" = "AST",
-#                 "Average steals per game" = "STL",
-#                 "Average blocks per game" = "BLK",
-#                 "Average turnovers per game" = "TOV")
 
 ```

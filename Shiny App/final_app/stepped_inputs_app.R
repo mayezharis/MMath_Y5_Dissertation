@@ -27,8 +27,8 @@ BaseballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year
 
 
 # CRICKET BATTING DATA
-CricketData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv")
-
+CricketBatData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bat_data.csv")
+CricketBowlData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/cric_bowl_data.csv")
 
 # NBA PLAYER DATA
 BasketballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/nba_data_cleaned.csv")
@@ -42,6 +42,7 @@ dataset_choices <- c("Toy Dataset 1 (quadratic with noise)" = "toy_data_1",
                      "Toy Dataset 4 (exponential with noise)" = "toy_data_4",
                      "NBA Player Data" = "nba_data_cleaned",
                      "Cricket Batting Data" = "cric_bat_data",
+                     "Cricket Bowling Data" = "cric_bowl_data",
                      "MLB Game Data" = "mlb_data_cleaned",
                      "Energy Consumption Data" = "energy_data_cleaned",
                      "Article Popularity Data" = "news_data_cleaned")
@@ -202,7 +203,10 @@ server <- function(input, output, session) {
       dataset <- BasketballData
     }
     else if (input$DataSet == "cric_bat_data"){
-      dataset <- CricketData
+      dataset <- CricketBatData
+    }
+    else if (input$DataSet == "cric_bowl_data"){
+      dataset <- CricketBowlData
     }
     else if (input$DataSet == "mlb_data_cleaned"){
       dataset <- BaseballData
