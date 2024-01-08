@@ -42,7 +42,7 @@ qq_current <- function(data) {
 
 toy_1_x <- rnorm(10000)
 toy_1_y <- (0.5*toy_1_x-1)*(0.5*toy_1_x+1) + rnorm(10000, sd = 0.8)
-toy_1_data <- data.frame(x=toy_1_x, y=toy_1_y)
+toy_1_data <- data.frame(y=toy_1_y, x=toy_1_x)
 # 
 write.csv(toy_1_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_1.csv", row.names=FALSE)
 
@@ -94,7 +94,7 @@ toy_1_hist_plot
 # set.seed(234)
 toy_2_x <- rnorm(10000)
 toy_2_y <- (toy_2_x-0.5)*(-18*toy_2_x+0.4)*(-toy_2_x-0.5) + rnorm(10000, sd = 20)
-toy_2_data <- data.frame(x=toy_2_x, y=toy_2_y)
+toy_2_data <- data.frame(y=toy_2_y, x=toy_2_x)
 
 write.csv(toy_2_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_2.csv", row.names=FALSE)
 
@@ -179,7 +179,7 @@ toy_2_hist_plot_rvf
 # set.seed(234)
 toy_3_x <- rnorm(20000)
 toy_3_y <- log(toy_3_x + rnorm(1)) + rnorm(10000, sd = 0.75)
-toy_3_data <- na.omit(data.frame(x=toy_3_x, y=toy_3_y))
+toy_3_data <- na.omit(data.frame(y=toy_3_y, x=toy_3_x))
 
 write.csv(toy_3_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_3.csv", row.names=FALSE)
 
@@ -265,7 +265,7 @@ toy_3_hist_plot_rvf
 # set.seed(234)
 toy_4_x <- runif(10000, min = -0.25, max = 1)
 toy_4_y <- 0.5*exp(-20*toy_4_x^3)-0.5 + rnorm(10000, sd = 0.05)
-toy_4_data <- data.frame(x=toy_4_x, y=toy_4_y)
+toy_4_data <- data.frame(y=toy_4_y, x=toy_4_x)
 
 write.csv(toy_4_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_4.csv", row.names=FALSE)
 
