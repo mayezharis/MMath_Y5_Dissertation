@@ -177,9 +177,9 @@ toy_2_hist_plot_rvf
 ```{r TOY DATASET 3 TEST}
 
 # set.seed(234)
-toy_3_x <- rnorm(10000)
+toy_3_x <- rnorm(20000)
 toy_3_y <- log(toy_3_x + rnorm(1)) + rnorm(10000, sd = 0.75)
-toy_3_data <- data.frame(x=toy_3_x, y=toy_3_y)
+toy_3_data <- na.omit(data.frame(x=toy_3_x, y=toy_3_y))
 
 write.csv(toy_3_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_3.csv", row.names=FALSE)
 
