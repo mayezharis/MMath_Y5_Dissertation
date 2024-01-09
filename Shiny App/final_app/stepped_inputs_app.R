@@ -15,6 +15,7 @@ ToyData1 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/D
 ToyData2 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_2.csv")
 ToyData3 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_3.csv")
 ToyData4 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_4.csv")
+ToyData5 <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_5.csv")
 
 
 # ENERGY DATA
@@ -40,10 +41,11 @@ BasketballData <- read.csv("C:/Users/mayez/OneDrive - University of Edinburgh/Ye
 
 
 
-dataset_choices <- c("Toy Dataset 1 (quadratic)" = "toy_data_1",
-                     "Toy Dataset 2 (cubic)" = "toy_data_2",
-                     "Toy Dataset 3 (logarithmic)" = "toy_data_3",
-                     "Toy Dataset 4 (composite function)" = "toy_data_4",
+dataset_choices <- c("Toy Dataset 1 (linear)" = "toy_data_1",
+                     "Toy Dataset 2 (quadratic)" = "toy_data_2",
+                     "Toy Dataset 3 (cubic)" = "toy_data_3",
+                     "Toy Dataset 4 (logarithmic)" = "toy_data_4",
+                     "Toy Dataset 5 (composite function)" = "toy_data_5",
                      "NBA Player Data" = "nba_data_cleaned",
                      "Cricket Batting Data" = "cric_bat_data",
                      "Cricket Bowling Data" = "cric_bowl_data",
@@ -264,23 +266,28 @@ ui <-
                variables. To allow for a more realistic relationship, an element of randomness was included by 
                adding random noise to each of the response variables. The datasets were all defined by the 
                independent and response variables below."),
-             h4("Dataset 1 (quadratic):"),
+             h4("Dataset 1 (linear):"),
+             p(tags$ul(
+               tags$li("$x_i \\sim \\mathrm{Unif}(0,1)$"),
+               tags$li("$y_i = x_i + r_i,\\,\\,$ where $\\,r_i \\sim N(0,0.25)$.")
+             )),
+             h4("Dataset 2 (quadratic):"),
              p(tags$ul(
                tags$li("$x_i \\sim N(0,1)$"),
                tags$li("$y_i = (0.5x_i-1)(0.5x_i+1) + r_i,\\,\\,$ where $\\,r_i \\sim N(0,0.8)$.")
              )),
-             h4("Dataset 2 (cubic):"),
+             h4("Dataset 3 (cubic):"),
              p(tags$ul(
                tags$li("$x_i \\sim N(0,1)$"),
                tags$li("$y_i = (x_i-0.5)(-18x_i+0.4)(-x_i-0.5) + r_i,\\,\\,$ where $\\,r_i \\sim N(0,20)$.")
              )),
-             h4("Dataset 3 (logarithmic):"),
+             h4("Dataset 4 (logarithmic):"),
              p(tags$ul(
                tags$li("$x_i \\sim N(0,1)$"),
                tags$li("$y_i = \\mathrm{ln}(x_i + s_i) + r_i,\\,\\,$ where $\\,s_i \\sim N(0,1)\\,\\,$ and 
                        $\\,r_i \\sim N(0,0.75)$")
              )),
-             h4("Dataset 4 (composite function):"),
+             h4("Dataset 5 (composite function):"),
              p(tags$ul(
                tags$li("$x_i \\sim \\mathrm{Unif}(-0.25,1)$"),
                tags$li("$y_i = 0.5\\mathrm{exp}(-20x_i^3) - 0.5 + r_i,\\,\\,$ where $\\,r_i \\sim N(0,0.05)$")
@@ -320,6 +327,9 @@ server <- function(input, output, session) {
     }
     else if (input$DataSet == "toy_data_4") {
       dataset <- ToyData4
+    }
+    else if (input$DataSet == "toy_data_5") {
+      dataset <- ToyData5
     }
     else if (input$DataSet == "nba_data_cleaned"){
       dataset <- BasketballData
