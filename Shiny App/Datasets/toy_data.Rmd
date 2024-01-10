@@ -261,9 +261,11 @@ toy_3_hist_plot_rvf
 
 ```{r TOY DATASET 4 TEST (LOGARITHMIC)}
 
-# set.seed(234)
-toy_4_x <- rnorm(20000)
-toy_4_y <- log(toy_4_x + rnorm(1)) + rnorm(10000, sd = 0.75)
+set.seed(12345)
+
+toy_4_x <- runif(5000, min = 0.001, max = 0.1)
+toy_4_y <- log(toy_4_x) + rnorm(5000, sd = 0.5)
+plot(toy_4_x, toy_4_y)
 toy_4_data <- na.omit(data.frame(y=toy_4_y, x=toy_4_x))
 
 write.csv(toy_4_data, "C:/Users/mayez/OneDrive - University of Edinburgh/Year 5/Dissertation/Code/MMath_Y5_Dissertation/Shiny App/Datasets/final_cleaned_datasets/toy_data_4.csv", row.names=FALSE)

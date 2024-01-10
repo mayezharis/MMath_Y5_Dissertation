@@ -71,10 +71,8 @@ lineup_p_val <- function(lineup_number, size = 9) {
   observers <- length(lineup)
   num_correct <- length(lineup[lineup == TRUE])
   p_val <- 0
-  if (num_correct != observers) {
-      for (i in num_correct:observers) {
+  for (i in num_correct:observers) {
     p_val <- p_val + choose(observers, i) * ((1/size)^i) * ((size-1)/size)^(observers-i)
-  }
   }
   round(p_val, 6)
 }
@@ -86,6 +84,15 @@ for (lineup_number in 1:8) {
 
 p_values_df <- data.frame("lineup" = 1:8,
                           "p_value" = p_values)
+
+p_vals_nullabor <- c()
+for (col in names(correctness_data)) {
+  p_vals_nullabor <- append(p_vals_nullabor, 
+                            nullabor::pvisual(x = sum(correctness_data[[col]] == TRUE), K = 55, m = 9)[[3]])
+}
+
+p_values_df <- cbind(p_values_df, p_vals_nullabor)
+p_values_df$diff <- abs(p_values_df$p_value - p_values_df$p_vals_nullabor)
 
 ```
 

@@ -108,6 +108,7 @@ ui <-
                                         choices = c("Please select dataset and variables first" = "")),
                             
                             uiOutput("resample"),
+                            uiOutput("multipleClicks"),
                             br(),
                             uiOutput("refresh"),
                             br(),
@@ -269,28 +270,28 @@ ui <-
              h4("Dataset 1 (linear):"),
              p(tags$ul(
                tags$li("$x_i \\sim \\mathrm{Unif}(0,1)$"),
-               tags$li("$y_i = x_i + r_i,\\,\\,$ where $\\,r_i \\sim N(0,0.25)$.")
+               tags$li("$y_i = x_i + \\epsilon_i,\\,\\,$ where $\\,\\epsilon_i \\sim N(0,0.25)$.")
              )),
              h4("Dataset 2 (quadratic):"),
              p(tags$ul(
                tags$li("$x_i \\sim N(0,1)$"),
-               tags$li("$y_i = (0.5x_i-1)(0.5x_i+1) + r_i,\\,\\,$ where $\\,r_i \\sim N(0,0.8)$.")
+               tags$li("$y_i = (0.5x_i-1)(0.5x_i+1) + \\epsilon_i,\\,\\,$ where $\\,\\epsilon_i \\sim N(0,0.8)$.")
              )),
              h4("Dataset 3 (cubic):"),
              p(tags$ul(
                tags$li("$x_i \\sim N(0,1)$"),
-               tags$li("$y_i = (x_i-0.5)(-18x_i+0.4)(-x_i-0.5) + r_i,\\,\\,$ where $\\,r_i \\sim N(0,20)$.")
+               tags$li("$y_i = (x_i-0.5)(-18x_i+0.4)(-x_i-0.5) + \\epsilon_i,\\,\\,$ where $\\,\\epsilon_i \\sim N(0,20)$.")
              )),
              h4("Dataset 4 (logarithmic):"),
              p(tags$ul(
                tags$li("$x_i \\sim N(0,1)$"),
-               tags$li("$y_i = \\mathrm{ln}(x_i + s_i) + r_i,\\,\\,$ where $\\,s_i \\sim N(0,1)\\,\\,$ and 
-                       $\\,r_i \\sim N(0,0.75)$")
+               tags$li("$y_i = \\mathrm{ln}(x_i + s_i) + \\epsilon_i,\\,\\,$ where $\\,s_i \\sim N(0,1)\\,\\,$ and 
+                       $\\,\\epsilon_i \\sim N(0,0.75)$")
              )),
              h4("Dataset 5 (composite function):"),
              p(tags$ul(
                tags$li("$x_i \\sim \\mathrm{Unif}(-0.25,1)$"),
-               tags$li("$y_i = 0.5\\mathrm{exp}(-20x_i^3) - 0.5 + r_i,\\,\\,$ where $\\,r_i \\sim N(0,0.05)$")
+               tags$li("$y_i = 0.5\\mathrm{exp}(-20x_i^3) - 0.5 + \\epsilon_i,\\,\\,$ where $\\,\\epsilon_i \\sim N(0,0.05)$")
              )),
              
              h3("Real world datasets"),
@@ -383,7 +384,7 @@ server <- function(input, output, session) {
     req(input$x_var != "")
     updateSelectInput(inputId = "sample_size",
                       label = "Sample size:",
-                      choices = c("Select a sample size" = "", 50, 100, 200, 300, 400, 500))
+                      choices = c("Select a sample size" = "", 50, 100, 200, 300, 400, 5000))
   })
   
   observeEvent(input$x_var, {
@@ -422,6 +423,11 @@ server <- function(input, output, session) {
     req(sample_size())
     actionButton("resample_qq", "Generate new sample")
   })
+  # output$multipleClicks <- renderUI({
+  #   req(sample_size())
+  #   actionButton("multipleClicks", "Generate 5 samples")
+  # })
+  # 
   
   #====================================================================#
   
@@ -439,6 +445,7 @@ server <- function(input, output, session) {
   observeEvent(input$resample_qq, {
     resample$counter <- resample$counter + 1
   })
+
   
   #====================================================================#
   
@@ -467,19 +474,19 @@ server <- function(input, output, session) {
   ######################################################################
   ######################################################################
   output$refresh  <- renderUI({
-    req(resample$counter >0)
+    req(resample$counter > 0)
     actionButton("refresh", "Reset inputs")
   })
   output$refresh_rvf  <- renderUI({
-    req(resample$counter >0)
+    req(resample$counter > 0)
     actionButton("refresh_rvf", "Reset inputs")
   })
   output$refresh_sl  <- renderUI({
-    req(resample$counter >0)
+    req(resample$counter > 0)
     actionButton("refresh_sl", "Reset inputs")
   })
   output$refresh_qq  <- renderUI({
-    req(resample$counter >0)
+    req(resample$counter > 0)
     actionButton("refresh_qq", "Reset inputs")
   })
   
@@ -512,12 +519,13 @@ server <- function(input, output, session) {
   reg_data <- reactive({
     req(input$x_var, input$y_var, input$x_var %in% names(data()))
     if (resample$counter > 0) {
-      data_sample <- sample_n(data(), sample_size())
-      return(data_sample[, c(input$x_var, input$y_var)])
+      #data_sample <- sample_n(data(), sample_size())
+      #return(data_sample[, c(input$x_var, input$y_var)])
+      return(data()[sample.int(nrow(data()), size = sample_size()), c(input$x_var, input$y_var)])
    }
   })
 
-  # fit a linear model on sample
+  # fit a linear model on sample0
   mod <- reactive({
     lm(paste(input$y_var, "~", input$x_var), reg_data())
   })
