@@ -402,6 +402,76 @@ server <- function(input, output, session) {
     })
   
   
+  # 
+  # ######################################################################
+  # #####################  GENERATING NEW SAMPLES  #######################
+  # ######################################################################
+  # ######################################################################
+  # # 
+  multi_num <- 5
+  # # 
+  output$multipleClicks <- renderUI({
+    req(sample_size())
+    actionButton("multipleClicks", "Generate 5 samples")
+  })
+
+  #====================================================================#
+
+  resample <- reactiveValues(counter = 0, counter_multi = 0)
+
+  observeEvent(input$multipleClicks, {
+    resample$counter5 <- resample$counter_multi + 5
+  })
+
+
+  #====================================================================#
+
+  observeEvent(input$DataSet, {
+    resample$counter_multi <- 0
+  })
+
+  ######################################################################
+  ######################################################################
+
+  # Define the data sample with the inputted sample size
+  reg_data_multi <- reactive({
+    req(input$x_var, input$y_var, input$x_var %in% names(data()))
+    if (resample$counter_multi > 0) {
+      #data_sample <- sample_n(data(), sample_size())
+      #return(data_sample[, c(input$x_var, input$y_var)])
+      return(data()[sample.int(nrow(data()), size = sample_size()*multi_num), c(input$x_var, input$y_var)])
+      }
+  })
+
+  mod_multi <- reactive({
+    lms <- list()
+    for (i in 1:multi_num) {
+      start_ind <- (i-1) * sample_size() + 1
+      end_ind <- i * sample_size()
+      append(lms,
+             lm(paste(input$y_var, "~", input$x_var), 
+                reg_data_multi()[start_ind, end_ind]))
+    }
+    return(lms)
+  })
+
+  obsData_multi <- reactive({
+    
+    for (mod in mod_multi()){
+      augment(mod)
+    }
+  })
+  
+  
+  
+  
+  #____________________________________________________________________#
+  #____________________________________________________________________#
+  #____________________________________________________________________#
+  #____________________________________________________________________#
+  #____________________________________________________________________#
+  #____________________________________________________________________#
+  #____________________________________________________________________#
   
   ######################################################################
   #####################  GENERATING NEW SAMPLES  #######################
@@ -423,15 +493,14 @@ server <- function(input, output, session) {
     req(sample_size())
     actionButton("resample_qq", "Generate new sample")
   })
-  # output$multipleClicks <- renderUI({
-  #   req(sample_size())
-  #   actionButton("multipleClicks", "Generate 5 samples")
-  # })
-  # 
+  output$multipleClicks <- renderUI({
+    req(sample_size())
+    actionButton("multipleClicks", "Generate 5 samples")
+  })
   
   #====================================================================#
   
-  resample <- reactiveValues(counter = 0)
+  resample <- reactiveValues(counter = 0, counter_multi = 0)
   
   observeEvent(input$resample, {
     resample$counter <- resample$counter + 1
@@ -515,6 +584,8 @@ server <- function(input, output, session) {
   })
   
   
+  
+  
   # Define the data sample with the inputted sample size
   reg_data <- reactive({
     req(input$x_var, input$y_var, input$x_var %in% names(data()))
@@ -522,10 +593,10 @@ server <- function(input, output, session) {
       #data_sample <- sample_n(data(), sample_size())
       #return(data_sample[, c(input$x_var, input$y_var)])
       return(data()[sample.int(nrow(data()), size = sample_size()), c(input$x_var, input$y_var)])
-   }
+    }
   })
 
-  # fit a linear model on sample0
+  # fit a linear model on sample
   mod <- reactive({
     lm(paste(input$y_var, "~", input$x_var), reg_data())
   })
