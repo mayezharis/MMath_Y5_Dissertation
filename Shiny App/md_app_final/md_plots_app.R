@@ -50,6 +50,12 @@ library(latex2exp)
 library(broom)
 
 
+######################################################################
+######################################################################
+########################### SETTING UP UI ############################
+######################################################################
+######################################################################
+
 ui <-
   navbarPage(
     tags$head(
@@ -75,15 +81,15 @@ ui <-
              sidebarLayout(
                sidebarPanel(selectInput(inputId = "DataSet",
                                         label = "Dataset:",
-                                        choices = c("Select a dataset" = "" ,dataset_choices)),
+                                        choices = c("Select a dataset" = "", dataset_choices)),
                             
                             selectInput(inputId = "y_var",
                                         label = "Y Variable:",
-                                        choices = c("Please select a dataset first" = "")),  # drop-down for y variable
+                                        choices = c("Please select a dataset first" = "")),
                             
                             selectInput(inputId = "x_var",
                                         label = "X Variable:",
-                                        choices = c("Please select a dataset first" = "")),  # drop-down for x-variable
+                                        choices = c("Please select a dataset first" = "")), 
                             
                             selectInput(inputId = "sample_size",
                                         label = "Sample size:",
@@ -113,10 +119,10 @@ ui <-
                                          label = h4("Plot Options:"),
                                          choices = c("Show red line" = "wRL",
                                                      "Show confidence interval" = "wCI",
-                                                     "Show data only" = "woRL")), # radio buttons to change options for red line
+                                                     "Show data only" = "woRL")),
                             uiOutput("resample_rvf"),
                             br(),
-                            uiOutput("refresh_rvf"),  # regenerate a new random sample of the data)
+                            uiOutput("refresh_rvf"),
                             br(),
                             br(),
                             textOutput("NumSamplesRVF")
@@ -124,7 +130,7 @@ ui <-
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineRVF"),
-                             plotOutput("rvfPlot1")),   # render the plots
+                             plotOutput("rvfPlot1")),   
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                             plotOutput("fittedLineHrvf"),
@@ -141,7 +147,7 @@ ui <-
                                          label = h4("Plot Options:"),
                                          choices = c("Show red line" = "wRL",
                                                      "Show confidence interval" = "wCI",
-                                                     "Show data only" = "woRL")), # radio buttons to change options for red line
+                                                     "Show data only" = "woRL")),
                             uiOutput("resample_sl"),
                             br(),
                             uiOutput("refresh_sl"),
@@ -151,7 +157,7 @@ ui <-
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineSL"),
-                             plotOutput("slPlot1")),   # render the plots
+                             plotOutput("slPlot1")),
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineHsl"),
@@ -174,7 +180,7 @@ ui <-
                mainPanel(fluidRow(
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineQQ"),
-                             plotOutput("qqPlot1")),   # render the plots
+                             plotOutput("qqPlot1")),
                  br(),
                  splitLayout(cellWidths = c("50%", "50%"),
                              plotOutput("fittedLineHqq"),
@@ -291,9 +297,12 @@ ui <-
   )
 
 
+######################################################################
+######################################################################
+######################### SETTING UP SERVER ##########################
+######################################################################
+######################################################################
 
-
-# DEFINE SERVER
 server <- function(input, output, session) {
 
   # Calling a dataset based on the dataset selected
@@ -339,6 +348,12 @@ server <- function(input, output, session) {
   var_names <- reactive({
     req(!is.null(data()))
     colnames(data())
+  })
+  
+  # Taking subset of data to only include extremities of all columns
+  data_minmax <- reactive({
+    data() %>%
+      filter(if_any(everything(), ~.x == max(.x) | .x == min(.x)))
   })
   
   
@@ -408,8 +423,7 @@ server <- function(input, output, session) {
   # Starting a counter for the number of samples
   resample <- reactiveValues(counter = 0)
   
-  # Updating counter every time one of the 
-  # "Generate new sample" buttons are clicked
+  # Updating counter every time one of the "Generate new sample" buttons are clicked
   observeEvent(input$resample, {
     resample$counter <- resample$counter + 1
   })
@@ -438,7 +452,6 @@ server <- function(input, output, session) {
   observeEvent(input$sample_size, {
     resample$counter <- 0
   })
-  
   ######################################################################
   ######################################################################
   ######################################################################
@@ -447,9 +460,10 @@ server <- function(input, output, session) {
   
     
   ######################################################################
-  #######################  REFRESHING THE APP  #########################
+  #######################  RESETTING THE APP  ##########################
   ######################################################################
   ######################################################################
+  
   output$refresh  <- renderUI({
     req(resample$counter > 0)
     actionButton("refresh", "Reset all inputs")
@@ -481,26 +495,25 @@ server <- function(input, output, session) {
   ######################################################################
   ######################################################################
   
-  data_minmax <- reactive({
-    data() %>%
-      filter(if_any(everything(), ~.x == max(.x) | .x == min(.x)))
-  })
-  
+  # Create a linear fit for the full dataset
   mod_full <- reactive({
     lm(paste(input$y_var, "~", input$x_var), data())
   })
   
+  # Find augmented data for the full data model
   aug_data_full <- reactive({
     augment(mod_full()) %>%
       mutate(sqrt_abs_std_res = sqrt(abs(.std.resid)))
   })
+  
+  # Subset augmented data to only include extremities  
   aug_full_minmax <- reactive({
     aug_data_full() %>%
       filter(if_any(everything(), ~.x == max(.x) | .x == min(.x)))
   })
   
   
-  # Define the data sample with the inputted sample size
+  # Draw a sample using the given sample size
   reg_data <- reactive({
     req(input$x_var, input$y_var, input$x_var %in% names(data()))
     if (resample$counter > 0) {
@@ -510,19 +523,16 @@ server <- function(input, output, session) {
    }
   })
 
-  # fit a linear model on sample
+  # Fit a linear model on sample
   mod <- reactive({
     lm(paste(input$y_var, "~", input$x_var), reg_data())
   })
   
-  obsData <- reactive({
+  # Obtain augmented data from the linear fit on the sample
+  augData <- reactive({
     augment(mod()) %>%
       mutate(sqrt_abs_std_res = sqrt(abs(.std.resid)))
   })
-  
-  normalize <- function(x, na.rm = TRUE) {
-    return((x- min(x)) /(max(x)-min(x)))
-  }
   
   
   ######################################################################
@@ -530,14 +540,17 @@ server <- function(input, output, session) {
   ########################  RVF PLOT HISTORY  ##########################
   ######################################################################
   
+  # Empty dataframe to store history data
   rvf_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
   
+  # Clear dataframe when the sample counter is at 0
   observeEvent(resample$counter, {
     if (resample$counter == 0) {
       rvf_history_data$history <- data.frame(x = numeric(), y = numeric())
     }
   })
   
+  # Create a skeleton for the history plot
   rvf_empty <- reactive({
     req(resample$counter > 0)
     ggplot(aug_full_minmax(), aes(x = .fitted, y = .resid)) +
@@ -548,27 +561,33 @@ server <- function(input, output, session) {
            y = "Residuals")
   })
   
+  # Function to draw the smoothing line from sample data
   rvf_current <- function(data) {
     data %>% ggplot(aes(x = .fitted, y = .resid)) +
       geom_point() +
       stat_smooth(formula = "y~x", method = "loess", se = FALSE, n = sample_size())
   }
   
+  # Adding the current sample's line to the history dataframe
   observeEvent(resample$counter, {
     if (resample$counter > 0) {
-      rvf_new_line <- ggplot_build(rvf_current(obsData()))$data[[2]][, c("x", "y")]
       
+      # Obtain data about the smoothing line
+      rvf_new_line <- ggplot_build(rvf_current(augData()))$data[[2]][, c("x", "y")]
       
+      # Group line by the sample it represents
       rvf_new_line$group <- nrow(rvf_history_data$history) / sample_size() + 1
-      
+    
+      # Distinguish current sample's line from previous lines
       rvf_new_line$is_recent <- "TRUE"
-      
       if (nrow(rvf_history_data$history) > 0) {
         rvf_history_data$history$is_recent <- "FALSE"
       }
       
+      # Add current line to history data
       rvf_history_data$history <- rbind(rvf_history_data$history, rvf_new_line)
     
+      # Render the history plot
       output$rvf_history_plot <- renderPlot({
         rvf_empty() +
           geom_line(data = rvf_history_data$history,
@@ -590,14 +609,17 @@ server <- function(input, output, session) {
   ########################  SL PLOT HISTORY  ###########################
   ######################################################################
   
+  # Empty dataframe to store history data
   sl_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
   
+  # Clear dataframe when the sample counter is at 0
   observeEvent(resample$counter, {
     if (resample$counter == 0) {
       sl_history_data$history <- data.frame(x = numeric(), y = numeric())
     }
   })
   
+  # Create a skeleton for the history plot
   sl_empty <- reactive({
     req(resample$counter > 0)
     ggplot(aug_full_minmax(), aes(x = .fitted, y = sqrt_abs_std_res)) +
@@ -607,28 +629,33 @@ server <- function(input, output, session) {
            y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$"))
   })
   
+  # Function to draw the smoothing line from sample data
   sl_current <- function(data) {
     data %>% ggplot(aes(x = .fitted, y = sqrt_abs_std_res)) +
       geom_point() +
       stat_smooth(formula = "y~x", method = "loess", se = FALSE, n = sample_size())
   }
   
+  # Adding the current sample's line to the history dataframe
   observeEvent(resample$counter, {
     if (resample$counter > 0) {
-      sl_new_line <- ggplot_build(sl_current(obsData()))$data[[2]][, c("x", "y")]
       
+      # Obtain data about the smoothing line
+      sl_new_line <- ggplot_build(sl_current(augData()))$data[[2]][, c("x", "y")]
+      
+      # Group line by the sample it represents
       sl_new_line$group <- nrow(sl_history_data$history) / sample_size() + 1
       
+      # Distinguish current sample's line from previous lines
       sl_new_line$is_recent <- "TRUE"
-      
       if (nrow(sl_history_data$history) > 0) {
         sl_history_data$history$is_recent <- "FALSE"
       }
       
-      
+      # Add current line to history data
       sl_history_data$history <- rbind(sl_history_data$history, sl_new_line)
       
-      
+      # Render the history plot
       output$sl_history_plot <- renderPlot({
         sl_empty() + 
           geom_line(data = sl_history_data$history, 
@@ -646,20 +673,22 @@ server <- function(input, output, session) {
   
   
   
-  
   ######################################################################
   ######################################################################
   ########################  QQ PLOT HISTORY  ###########################
   ######################################################################
   
+  # Empty dataframe to store history data
   qq_history_data <- reactiveValues(history = data.frame(x = numeric(), y = numeric()))
   
+  # Clear dataframe when the sample counter is at 0
   observeEvent(resample$counter, {
     if (resample$counter == 0) {
       qq_history_data$history <- data.frame(x = numeric(), y = numeric())
     }
   })
   
+  # Create a skeleton for the history plot
   qq_empty <- reactive({
     req(resample$counter > 0)
     aug_data_full() %>% ggplot(aes(sample = .std.resid)) +
@@ -669,29 +698,33 @@ server <- function(input, output, session) {
            y = "Standardized residuals")
   })
   
+  # Function to draw the smoothing line from sample data
   qq_current <- function(data) {
     data %>% ggplot(aes(sample = .std.resid)) +
       stat_qq_line() +
       stat_qq(geom = "path")
   }
   
+  # Adding the current sample's line to the history dataframe
   observeEvent(resample$counter, {
     if (resample$counter > 0) {
       
-      qq_new_line <- ggplot_build(qq_current(obsData()))$data[[2]][, c("x", "y")]
+      # Obtain data about the QQ line
+      qq_new_line <- ggplot_build(qq_current(augData()))$data[[2]][, c("x", "y")]
       
+      # Group line by the sample it represents
       qq_new_line$group <- nrow(qq_history_data$history) / sample_size() + 1
       
+      # Distinguish current sample's line from previous lines
       qq_new_line$is_recent <- "TRUE"
-      
       if (nrow(qq_history_data$history) > 0) {
         qq_history_data$history$is_recent <- "FALSE"
       }
       
-      
+      # Add current line to history data
       qq_history_data$history <- rbind(qq_history_data$history, qq_new_line)
       
-      
+      # Render the history plot
       output$qq_history_plot <- renderPlot({
         qq_empty() +
           geom_line(data = qq_history_data$history,
@@ -706,7 +739,6 @@ server <- function(input, output, session) {
   ######################################################################
   ######################################################################
   
-  
 
     
   ######################################################################
@@ -715,32 +747,34 @@ server <- function(input, output, session) {
   ######################################################################
   ######################################################################
   
-  # Create a reactiveValues for the history of linear fit
+  # Empty dataframe to contain the intercepts and slopes of each line
   history_data <- reactiveValues(history = data.frame(intercept = numeric(), slope = numeric()))
   
+  # Clear dataframe when the sample counter is at 0
   observeEvent(resample$counter, {
     if (resample$counter == 0) {
       history_data$history <- data.frame(intercept = numeric(), slope = numeric())
     }
   })
   
-  # history plots
+  # Obtain intercept and slope of the current linear fit
   observeEvent(resample$counter, {
     if (resample$counter > 0) {
       new_row <- data.frame(
         intercept = coef(mod())[1],
         slope = coef(mod())[2],
+        
+      # Distinguish current line from previous lines 
         is_recent = "TRUE"
       )
-      
       if (nrow(history_data$history) > 0) {
         history_data$history$is_recent <- "FALSE"
       }
       
+      # Add current line to history data
       history_data$history <- rbind(history_data$history, new_row)
-
       
-      # Update the plot
+      # Render the history plot
       output$fittedLineHoriginal <- 
         output$fittedLineHrvf <-
         output$fittedLineHsl <- 
@@ -760,7 +794,6 @@ server <- function(input, output, session) {
   ######################################################################
   ######################################################################
   ######################################################################
-
   
   
 
@@ -788,31 +821,31 @@ server <- function(input, output, session) {
 
 
 
-
-
   ######################################################################
   ######################################################################
   ######################  DIAGNOSTIC PLOTS  ############################
   ######################################################################
   
+  # These plots are all rendered based on the switch input on the observer's side
+  
   output$rvfPlot1 <- renderPlot({
     req(resample$counter > 0)
     rvfPlot <- switch(input$plot_options_rvf,
-                      wRL = obsData() %>% ggplot(aes(x = .fitted, y = .resid)) +
+                      wRL = augData() %>% ggplot(aes(x = .fitted, y = .resid)) +
                         geom_point(shape = 1) +
                         geom_hline(yintercept = 0, linetype = 2, color = "black") +
                         stat_smooth(formula = "y~x", col="red", method = "loess", se=FALSE, linewidth = 0.5, n = sample_size()) +
                         labs(title = "Residuals vs. Fitted",
                              x = "Fitted values",
                              y = "Residuals"),
-                      wCI = obsData() %>% ggplot(aes(x = .fitted, y = .resid)) +
+                      wCI = augData() %>% ggplot(aes(x = .fitted, y = .resid)) +
                         geom_point(shape = 1) +
                         geom_hline(yintercept = 0, linetype = 2, color = "black") +
                         stat_smooth(formula = "y~x", col="red", method = "loess", se=!FALSE, linewidth = 0.5, n = sample_size()) +
                         labs(title = "Residuals vs. Fitted",
                              x = "Fitted values",
                              y = "Residuals"),
-                      woRL = obsData() %>% ggplot(aes(x = .fitted, y = .resid)) +
+                      woRL = augData() %>% ggplot(aes(x = .fitted, y = .resid)) +
                         geom_point(shape = 1) +
                         geom_hline(yintercept = 0, linetype = 2, color = "black") +
                         labs(title = "Residuals vs. Fitted",
@@ -823,7 +856,7 @@ server <- function(input, output, session) {
 
   output$qqPlot1 <- renderPlot({
     req(resample$counter > 0)
-    qqPlot <- obsData() %>%
+    qqPlot <- augData() %>%
       ggplot(aes(sample = .std.resid)) +
       stat_qq_line() +
       stat_qq() +
@@ -834,19 +867,19 @@ server <- function(input, output, session) {
   output$slPlot1 <- renderPlot({
     req(resample$counter > 0)
     slPlot <- switch(input$plot_options_sl,
-                     wRL = obsData() %>% ggplot(aes(x = .fitted, y = sqrt_abs_std_res)) +
+                     wRL = augData() %>% ggplot(aes(x = .fitted, y = sqrt_abs_std_res)) +
                        geom_point(shape = 1) +
                        stat_smooth(formula = "y~x", col="red", method = "loess", se=FALSE, linewidth = 0.5, n = sample_size()) +
                        labs(title= "Scale-Location",
                             x ="Fitted values",
                             y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$")),
-                     wCI = obsData() %>% ggplot(aes(x = .fitted, y = sqrt_abs_std_res)) +
+                     wCI = augData() %>% ggplot(aes(x = .fitted, y = sqrt_abs_std_res)) +
                        geom_point(shape = 1) +
                        stat_smooth(formula = "y~x", col="red", method = "loess", se=!FALSE, linewidth = 0.5, n = sample_size()) +
                        labs(title= "Scale-Location",
                             x ="Fitted values",
                             y = TeX("$\\sqrt{|standardized\\,\\, residuals|}$")),
-                     woRL = obsData() %>% ggplot(aes(x = .fitted, y = sqrt_abs_std_res)) +
+                     woRL = augData() %>% ggplot(aes(x = .fitted, y = sqrt_abs_std_res)) +
                        geom_point(shape = 1) +
                        labs(title= "Scale-Location",
                             x ="Fitted values",
@@ -857,7 +890,6 @@ server <- function(input, output, session) {
   ######################################################################
   ######################################################################
   ######################################################################
-  
   
   
   
