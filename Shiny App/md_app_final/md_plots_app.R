@@ -193,29 +193,30 @@ ui <-
                large datasets. Using this, you may explore and investigate how models might vary under resampling. 
                The app specifically focuses on how the linear fit of the data and the model diagnostic plots may 
                vary with each different sample of the data that you take. Along with the linear fit and diagnostic 
-               plots for the current sample, you will also be able to see plots from all previous samples for easy 
+               plots for the current sample, you will also be able to see plots from all previous samples for quick 
                comparison."),
              p("It will allow you to explore using toy datasets with predetermined relationships between the 
-               independent and response variables, in addition to real world datasets with more random elements 
-               and no previously known relationships between the various independent and response variables 
+               explanatory and response variables, in addition to real world datasets with more random elements 
+               and no previously known relationships between the various explanatory and response variables 
                contained within each of them."),
              
              
              h2("Linear fit"),
              p("This is a scatter plot of the current sample of the dataset. It allows us to see how the 
                data points in the current sample are structured. Additionally, we add a linear fit line 
-               to the plot, which represents our linear regression model in the form of a straight line, 
-               given by $\\mathbb{E}(Y_i) = \\alpha + \\beta x_i$ for $i = 1,\\dots,n$."),
+               to the plot using a least squares estimation, which represents our linear regression model in the form of a straight line, 
+               given by $\\mathbb{E}[Y_i] = \\alpha + \\beta x_i$ for $i = 1,\\dots,n$."),
              
              
              h2("Model diagnostic plots"),
              p("When constructing a normal linear regression model, given by 
                $Y_i \\sim N(\\alpha+\\beta x_i, \\sigma^2)$ for $i = 1, \\dots, n$, we 
-               make the assumptions of:",
+               make the following assumptions:",
                tags$ol(
-                 tags$li("Linearity of the expectation, $\\mathbb{E}(Y_i) = \\alpha + \\beta x_i$;"),
-                 tags$li("Homoscedasticity (i.e. have the same variance); and"),
-                 tags$li("Normally distributed.")
+                 tags$li("The expectation of the response and the explanatory variable are linearly related, 
+                         i.e. $\\mathbb{E}[Y_i] = \\alpha + \\beta x_i$;"),
+                 tags$li("the errors have constant variance, $\\sigma^2$ (i.e. they exhibit homoscedasticity); and"),
+                 tags$li("the errors are normally distributed.")
                  )),
              
              h4("Residuals vs. Fitted"),
@@ -234,14 +235,15 @@ ui <-
              p("The third assumption can be verified through the Normal Q-Q plot. This is a scatter plot of the 
                quantiles calculated from the sample data against the quantiles of a standard normal distribution 
                with mean 0 and standard deviation 1. If the assumption is true, we should see the data points 
-               lying on a straight diagonal line, typically given by the $y=x$ line."),
+               lying on a straight diagonal line, also known as the identity line."),
              
              h4("Smoothing line and confidence intervals"),
-             p("Both the Residuals vs. Fitted and Scale-Location plots may also contain a smoothing line to show 
-               the general trend among the data points. While this may not be representative of the data’s 
-               underlying structure, it can be helpful for identifying patterns or clusters which may not be 
-               obvious to the naked eye. It is important to consider the error that may be associated with 
-               calculating this line at each point, and this can be done through the use of a confidence band."),
+             p("Both the Residuals vs. Fitted and Scale-Location plots may also contain a smoothing line, 
+               constructed using local averages (LOESS), to show the general trend among the data points. 
+               While this may not be representative of the data’s underlying structure, it can be helpful for 
+               identifying patterns or clusters which may not be obvious to the naked eye. It is important to 
+               consider the error that may be associated with calculating this line at each point, and this 
+               can be done through the use of a confidence band."),
              
              
              h2("Datasets"),
@@ -254,6 +256,7 @@ ui <-
                variables. To allow for a more realistic relationship, an element of randomness was included by 
                adding random noise to each of the response variables. The datasets were all defined by the 
                independent and response variables below."),
+             
              h4("Dataset 1 (linear):"),
              p(tags$ul(
                tags$li("$x_i \\sim \\mathrm{Unif}(0,1)$"),
@@ -292,7 +295,12 @@ ui <-
              p("The datasets available on this app are all open source datasets found on the internet. They have 
                all been modified for the purposes of this app. This includes removing extreme outliers and unwanted 
                variables. Additionally, random noise of varying degrees has been added to all datasets to make the 
-               data continuous and easier to visualise.")
+               data continuous and easier to visualise."),
+             
+             h2("Author"),
+             p("This application was made by Mayez Haris for an undergraduate final year dissertation at the University of 
+               Edinburgh. The source code for the application is available",
+               a("here", href="https://github.com/mayezharis/MMath_Y5_Dissertation/tree/main/Shiny%20App/md_app_final"), "."),
              ),
   )
 
