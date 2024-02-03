@@ -527,7 +527,6 @@ server <- function(input, output, session) {
     if (resample$counter > 0) {
       data_sample <- sample_n(data(), sample_size())
       return(data_sample[, c(input$x_var, input$y_var)])
-      # return(data()[sample.int(nrow(data()), size = sample_size()), c(input$x_var, input$y_var)])
    }
   })
 
