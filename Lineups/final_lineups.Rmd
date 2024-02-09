@@ -177,6 +177,7 @@ suppressMessages(ggsave("FLU1_SL_woL(4).png", path = "Final Lineups/SL Lineups/L
 ```
 
 ```{r SL Lineup 2 (SHARE) fig.height=7.5, fig.width=9 (LU1)}
+
 set.seed(500)
 samp1 <- data[sample(nrow(data), 250), ] %>% 
   filter(bmi>18 | bmi < 35) %>%

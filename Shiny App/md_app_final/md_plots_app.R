@@ -301,6 +301,7 @@ ui <-
              p("This application was made by Mayez Haris for an undergraduate final year dissertation at the University of 
                Edinburgh. The source code for the application is available",
                a("here", href="https://github.com/mayezharis/MMath_Y5_Dissertation/tree/main/Shiny%20App/md_app_final"), "."),
+             br(),
              ),
   )
 
