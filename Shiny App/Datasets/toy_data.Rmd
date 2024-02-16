@@ -1,11 +1,9 @@
-```{r Packages & Setup}
+```{r Packages and basic setup}
 knitr::opts_chunk$set(echo = FALSE)
 suppressPackageStartupMessages(library("tidyverse"))
-suppressPackageStartupMessages(library("dplyr"))
 suppressPackageStartupMessages(library("gridExtra"))
 suppressPackageStartupMessages(library("visdat"))
 suppressPackageStartupMessages(library("countrycode"))
-suppressPackageStartupMessages(library("ggplot2"))
 suppressPackageStartupMessages(library("knitr"))
 suppressPackageStartupMessages(library("nullabor"))
 suppressPackageStartupMessages(library("ggthemes"))
@@ -15,7 +13,7 @@ suppressPackageStartupMessages(library("reshape2"))
 suppressPackageStartupMessages(library("readxl"))
 suppressPackageStartupMessages(library("lubridate"))
 suppressPackageStartupMessages(library("openintro"))
-suppressPackageStartupMessages(library("janitor"))
+suppressPackageStartupMessages(library("janitor")) 
 ```
 
 ```{r functions}
