@@ -56,6 +56,9 @@ library(broom)
 ######################################################################
 ######################################################################
 
+# The code to set up the use of in-line mathematics using latex can be
+# found at https://stackoverflow.com/a/54882204
+
 ui <-
   navbarPage(
     tags$head(
