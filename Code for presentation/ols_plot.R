@@ -15,9 +15,9 @@ predicted <- predict(lm_model)
 
 # Create ggplot
 ols_presentation <- ggplot(data, aes(x = x, y = y)) +
-  geom_segment(aes(x = x, y = y, xend = x, yend = predicted), color = "black") +   # Add vertical lines
+  geom_segment(aes(x = x, y = y, xend = x, yend = predicted), color = "red",linetype = "dashed") +   # Add vertical lines
   geom_point(size = 3, color = "black") +                                        # Scatterplot of data points
-  geom_smooth(method = "lm", se = FALSE, color = "black") +   # Add linear regression line without confidence interval
+  geom_smooth(method = "lm", se = FALSE, color = "red") +   # Add linear regression line without confidence interval
   labs(
     title = "Example of Simple Linear Regression",
     x = TeX("Explanatory variable, $x$"), 
